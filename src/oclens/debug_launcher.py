@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from oclens.constants import POCL_DEBUG_ENV
+from oclens.constants import session_pocl_env
 
 
 def repo_root() -> Path:
@@ -22,7 +22,7 @@ def gdb_init_path() -> Path:
 
 def build_debug_env(extra: dict[str, str] | None = None) -> dict[str, str]:
     env = os.environ.copy()
-    env.update(POCL_DEBUG_ENV)
+    env.update(session_pocl_env())
     if extra:
         env.update(extra)
     return env
