@@ -32,6 +32,11 @@ def bind_sources_from_stop() -> None:
         gdb.write("OCLens: source mapped\n")
         gdb.write(f"  original: {mapper.original}\n")
         gdb.write(f"  runtime : {mapper.runtime}\n")
+        if not mapper.fingerprints_match():
+            gdb.write(
+                "OCLens: warning: runtime source differs from the session .cl "
+                "(rebuild the example so the copied kernel is up to date)\n"
+            )
     else:
         gdb.write("OCLens: could not bind a PoCL cache copy; using original source path\n")
 
