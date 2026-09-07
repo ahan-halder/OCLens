@@ -90,10 +90,9 @@ def check_opencl_loader() -> CheckResult:
 
 def _pocl_platform_info() -> tuple[bool, str, str]:
     """Return (found, version_string, detail)."""
-    try:
-        from ctypes import POINTER, c_char_p, c_int, c_size_t, c_uint, c_void_p, byref
-    except ImportError as exc:
-        return False, "", str(exc)
+    cl_uint = ctypes.c_uint
+    cl_int = ctypes.c_int
+    cl_platform_id = ctypes.c_void_p
 
     try:
         lib = ctypes.CDLL("libOpenCL.so.1")
@@ -103,39 +102,48 @@ def _pocl_platform_info() -> tuple[bool, str, str]:
         except OSError as exc:
             return False, "", str(exc)
 
-    clGetPlatformIDs = lib.clGetPlatformIDs
-    clGetPlatformIDs.argtypes = [c_size_t, c_void_p, POINTER(c_size_t)]
-    clGetPlatformIDs.restype = c_int
+    lib.clGetPlatformIDs.argtypes = [cl_uint, ctypes.c_void_p, ctypes.POINTER(cl_uint)]
+    lib.clGetPlatformIDs.restype = cl_int
+    lib.clGetPlatformInfo.argtypes = [
+        cl_platform_id,
+        cl_uint,
+        ctypes.c_size_t,
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_size_t),
+    ]
+    lib.clGetPlatformInfo.restype = cl_int
 
-    clGetPlatformInfo = lib.clGetPlatformInfo
-    clGetPlatformInfo.argtypes = [c_void_p, c_uint, c_size_t, c_void_p, POINTER(c_size_t)]
-    clGetPlatformInfo.restype = c_int
-
-    count = c_size_t()
-    err = clGetPlatformIDs(0, None, byref(count))
+    count = cl_uint()
+    err = lib.clGetPlatformIDs(0, None, ctypes.byref(count))
     if err != 0 or count.value == 0:
         return False, "", f"clGetPlatformIDs failed (err={err})"
 
-    CL_PLATFORM_NAME = 0x0900
-    CL_PLATFORM_VENDOR = 0x0901
-    CL_PLATFORM_VERSION = 0x0902
+    CL_PLATFORM_VERSION = 0x0901
+    CL_PLATFORM_NAME = 0x0902
+    CL_PLATFORM_VENDOR = 0x0903
 
-    PlatformId = c_void_p * count.value
-    platforms = PlatformId()
-    err = clGetPlatformIDs(count.value, platforms, None)
+    platforms = (cl_platform_id * count.value)()
+    err = lib.clGetPlatformIDs(count.value, platforms, None)
     if err != 0:
         return False, "", f"clGetPlatformIDs(enum) failed (err={err})"
 
-    for platform in platforms:
-        buf = (c_char_p * 256)()
-        size = c_size_t()
-        err = clGetPlatformInfo(platform, CL_PLATFORM_VENDOR, 256, buf, byref(size))
-        vendor = buf[0].decode(errors="replace") if err == 0 and buf[0] else ""
-        err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, 256, buf, byref(size))
-        name = buf[0].decode(errors="replace") if err == 0 and buf[0] else ""
-        err = clGetPlatformInfo(platform, CL_PLATFORM_VERSION, 256, buf, byref(size))
-        version = buf[0].decode(errors="replace") if err == 0 and buf[0] else ""
-        haystack = f"{vendor} {name}".lower()
+    def info(platform: int, param: int) -> str:
+        size = ctypes.c_size_t()
+        err = lib.clGetPlatformInfo(platform, param, 0, None, ctypes.byref(size))
+        if err != 0 or size.value == 0:
+            return ""
+        buf = ctypes.create_string_buffer(size.value)
+        err = lib.clGetPlatformInfo(platform, param, size.value, buf, None)
+        if err != 0:
+            return ""
+        return buf.value.decode(errors="replace")
+
+    for i in range(count.value):
+        platform = platforms[i]
+        vendor = info(platform, CL_PLATFORM_VENDOR)
+        name = info(platform, CL_PLATFORM_NAME)
+        version = info(platform, CL_PLATFORM_VERSION)
+        haystack = f"{vendor} {name} {version}".lower()
         if "pocl" in haystack:
             return True, version, f"{vendor} / {name}"
 
