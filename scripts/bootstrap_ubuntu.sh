@@ -16,12 +16,12 @@ ${SUDO} apt-get install -y \
   clinfo \
   cmake \
   curl \
+  g++ \
   gdb \
   git \
   libclang-dev \
   libclang-cpp-dev \
   libhwloc-dev \
-  libllvmlibs-ocaml-dev \
   llvm-dev \
   ninja-build \
   ocl-icd-opencl-dev \
@@ -30,7 +30,6 @@ ${SUDO} apt-get install -y \
   python3-pip \
   python3-venv \
   spirv-tools \
-  spirv-headers \
   zlib1g-dev
 
 echo "Bootstrap complete. Next: ./scripts/build_pocl.sh"
