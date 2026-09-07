@@ -28,6 +28,38 @@ def build_debug_env(extra: dict[str, str] | None = None) -> dict[str, str]:
     return env
 
 
+def build_gdb_argv(
+    gdb: str,
+    init: Path,
+    exe: Path,
+    kernel: str,
+    source: Path,
+    local_size: str,
+    batch_scripts: list[str] | None = None,
+) -> list[str]:
+    cmd = [
+        gdb,
+        "--quiet",
+        "-iex",
+        f"source {init}",
+        "-ex",
+        f"ocl-session-set exe {exe}",
+        "-ex",
+        f"ocl-session-set kernel {kernel}",
+        "-ex",
+        f"ocl-session-set source {source}",
+        "-ex",
+        f"ocl-session-set local-size {local_size}",
+    ]
+    if batch_scripts:
+        for script in batch_scripts:
+            cmd.extend(["-x", script])
+        cmd.extend(["--batch", "--args", str(exe)])
+    else:
+        cmd.extend(["-ex", "ocl-help", "--args", str(exe)])
+    return cmd
+
+
 def launch_debug_session(args: argparse.Namespace) -> int:
     gdb = shutil.which("gdb")
     if not gdb:
@@ -49,27 +81,15 @@ def launch_debug_session(args: argparse.Namespace) -> int:
         print(f"error: kernel source not found: {source}", file=sys.stderr)
         return 1
 
-    cmd = [
+    cmd = build_gdb_argv(
         gdb,
-        "--quiet",
-        "-iex",
-        f"source {init}",
-        "-ex",
-        f"oclens-session-set exe {exe}",
-        "-ex",
-        f"oclens-session-set kernel {args.kernel}",
-        "-ex",
-        f"oclens-session-set source {source}",
-        "-ex",
-        f"oclens-session-set local-size {args.local_size}",
-    ]
-
-    if args.batch:
-        for script in args.batch:
-            cmd.extend(["-x", script])
-        cmd.append("-batch")
-    else:
-        cmd.extend(["-ex", "ocl-help"])
+        init,
+        exe,
+        args.kernel,
+        source,
+        args.local_size,
+        args.batch,
+    )
 
     env = build_debug_env(
         {
