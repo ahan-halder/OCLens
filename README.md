@@ -41,6 +41,7 @@ work-item, into `break kernel.cl:23 for OpenCL global work-item 5`.
 - [Demo walkthrough](#demo-walkthrough)
 - [Commands](#commands)
 - [Repository layout](#repository-layout)
+- [Development timeline](#development-timeline)
 - [Testing](#testing)
 - [Scope and non-goals](#scope-and-non-goals)
 - [Known limitations](#known-limitations)
@@ -115,40 +116,56 @@ the OpenCL semantics on top.
 
 ## Architecture
 
-```text
-┌────────────────────────────────────────────────────────────┐
-│ User                                                       │
-│  ocl-break 23   ocl-wi global 5   ocl-locals               │
-└───────────────────────────────┬────────────────────────────┘
-                                │
-                                ▼
-┌──────────────────────────────────────────────────────────────┐
-│ OCLens GDB extension                                         │
-│                                                              │
-│  SessionState                                                │
-│    ├── SourceMapper                                          │
-│    ├── BreakpointManager                                     │
-│    ├── WorkItemTracker                                       │
-│    ├── ValueProjector                                        │
-│    ├── StepController                                        │
-│    └── StopEventTracker                                      │
-└───────────────────────────────┬──────────────────────────────┘
-                                │  GDB Python API
-                     ┌──────────┴───────────┐
-                     ▼                      ▼
-           DWARF symbols / lines     inferior control
-                     └──────────┬───────────┘
-                                ▼
-                    PoCL-generated kernel .so
-                                │
-                                ▼
-                     PoCL CPU work-group
+```mermaid
+flowchart TD
+    U["👤 Developer<br/><code>ocl-break · ocl-wi · ocl-locals · ocl-next</code>"]
+
+    subgraph EXT["OCLens GDB Extension"]
+        direction TB
+        SESSION["SessionState"]
+        SM["SourceMapper<br/><small>binds .cl ↔ PoCL runtime source</small>"]
+        BM["BreakpointManager<br/><small>WorkItemBreakpoint</small>"]
+        WT["WorkItemTracker<br/><small>selected vs. active work-item</small>"]
+        VP["ValueProjector<br/><small>context-array → source scalar</small>"]
+        SC["StepController<br/><small>work-item-preserving next/step</small>"]
+        ET["StopEventTracker<br/><small>breakpoint / signal / exit</small>"]
+        SESSION --> SM
+        SESSION --> BM
+        SESSION --> WT
+        SESSION --> VP
+        SESSION --> SC
+        SESSION --> ET
+    end
+
+    ADAPTER["PoclAdapter<br/><small>version-pinned symbol table<br/>(pocl_adapter.py)</small>"]
+
+    GDBAPI["GDB Python API"]
+    DWARF["DWARF debug info<br/><small>source lines · types · symbols</small>"]
+    PTRACE["Inferior control<br/><small>process · memory · registers</small>"]
+    SO["PoCL-generated<br/>kernel work-group .so"]
+    RUNTIME["PoCL CPU runtime<br/><small>work-item loops · barriers ·<br/>per-WI private context storage</small>"]
+
+    U -->|commands| EXT
+    WT -.->|read current work-item| ADAPTER
+    VP -.->|project raw value| ADAPTER
+    EXT --> GDBAPI
+    ADAPTER --> GDBAPI
+    GDBAPI --> DWARF
+    GDBAPI --> PTRACE
+    DWARF --> SO
+    PTRACE --> SO
+    SO --> RUNTIME
+
+    style EXT fill:#eef4ff,stroke:#4a6fa5
+    style ADAPTER fill:#fff4e6,stroke:#c9822a
+    style RUNTIME fill:#eafaf1,stroke:#2e9e6d
 ```
 
 All assumptions about PoCL internals (symbol names, context-array layout, work-item
 lowering) are isolated behind a single `PoclAdapter`, so future PoCL versions or
 alternate backends (e.g. Oclgrind) can be added without touching the rest of the
-codebase.
+codebase. GDB stays fully responsible for DWARF parsing and process control
+(`ptrace`); OCLens never duplicates either.
 
 ## Quick start
 
@@ -358,6 +375,52 @@ Detailed build-order notes for contributors (the risk-first implementation
 sequence, PoCL probing methodology, and stage-by-stage acceptance criteria) live
 in `docs/architecture.md` rather than here.
 
+## Development timeline
+
+OCLens is built in a **risk-first** order: the parts most likely to fail (getting
+GDB to genuinely stop inside a PoCL kernel and read its state) come before any
+polish. Each stage gates the next — don't start Stage *N+1* until Stage *N*'s
+acceptance criteria pass for real, against real PoCL/GDB, not mocks.
+
+```mermaid
+timeline
+    title OCLens build order — risk-first sequence
+    section Foundation
+        Stage A : Pinned Docker env (PoCL v7.2, LLVM, GDB+Python)
+                : tools/probe_pocl — ground-truth symbol probe
+        Stage B : oclens doctor — environment checks
+                : oclens debug — loads the GDB extension
+    section Core semantics
+        Stage C : SourceMapper — bind .cl to PoCL's runtime cache copy
+        Stage D : PoclAdapter.read_current_work_item — global/group/local IDs
+        Stage E : WorkItemBreakpoint — one logical stop per work-item
+    section Debugging value
+        Stage F : ValueProjector — context-array → source scalar
+        Stage G : StepController — ocl-next, then ocl-step
+    section Proof
+        Stage H : stencil_barrier_bug — barrier + divergence + real bug
+        Hardening : Automated batch-mode GDB integration tests
+                  : docs/, CI (unit + integration jobs)
+    section Stretch
+        Post-MVP : Oclgrind backend
+                 : Visual work-item grid (GDB TUI)
+                 : DAP / VS Code frontend
+                 : Stable PoCL debug ABI
+```
+
+| Stage | Focus | Gate to move on |
+|---|---|---|
+| A — Environment & probe | Reproducible Docker/PoCL/GDB env; record real observations in `docs/probe-pocl-7.2.md` | GDB genuinely stops inside a real PoCL kernel |
+| B — Launcher & doctor | `oclens doctor`, `oclens debug` loads the extension | Extension loads cleanly against the pinned env |
+| C — Source binding | `SourceMapper` maps original `.cl` ↔ PoCL's cached runtime source | `ocl-break <line>` stops at the right line, unfiltered |
+| D — Work-item semantics | `PoclAdapter.read_current_work_item`; coordinate math unit-tested | global/group/local IDs are correct at every stop |
+| E — Filtered breakpoints | `WorkItemBreakpoint.stop()` | One logical stop for the selected work-item, not N stops |
+| F — Source variables | `ocl-locals` / `ocl-print`; context-array projection | Raw PoCL aggregate correctly projects to a source scalar |
+| G — Stepping | `StopEventTracker`, `ocl-next`, then `ocl-step` | Active work-item is unchanged before/after a step |
+| H — Final demo | `stencil_barrier_bug`: barrier + divergence + real bug | Host reference output proves the bug; full workflow runs end-to-end |
+| Hardening | Automated integration tests, docs, CI | `pytest -q` + batch-mode GDB tests pass in a clean clone |
+| Stretch | Oclgrind backend, WI grid, DAP, stable PoCL ABI | Only starts after the MVP's integration tests pass |
+
 ## Testing
 
 ```bash
@@ -438,17 +501,17 @@ Only pursued after the PoCL MVP passes its integration tests:
   target, preserving the same source-level model.
 
 ```text
-                  ┌───────────────────┐
-                  │  OCLens UI/DAP    │
-                  └─────────┬─────────┘
+                 ┌───────────────────┐
+                 │  OCLens UI/DAP    │
+                 └──────────┬────────┘
                             │
                   OpenCL Debug Model
                             │
-        ┌───────────────────┼─────────────────────┐
-        ▼                   ▼                     ▼
+        ┌───────────────────┼────────────────────┐
+        ▼                   ▼                    ▼
  PoCL/GDB backend     Oclgrind backend      GPU simulator
-        │                    │                    │
-        ▼                    ▼                    ▼
+        │                    │                   │
+        ▼                    ▼                   ▼
  native + DWARF      LLVM IR interpreter    simulated ISA
 ```
 
