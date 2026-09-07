@@ -21,6 +21,7 @@ def test_interactive_argv_loads_host_and_uses_ocl_session_set() -> None:
 
 
 def test_batch_argv_places_scripts_before_args() -> None:
+    script = Path("script.gdb")
     argv = build_gdb_argv(
         "gdb",
         Path("/init.gdb"),
@@ -28,12 +29,12 @@ def test_batch_argv_places_scripts_before_args() -> None:
         "k",
         Path("/k.cl"),
         "8,1,1",
-        ["script.gdb"],
+        [str(script)],
     )
     x_at = argv.index("-x")
     args_at = argv.index("--args")
-    assert argv[x_at : x_at + 2] == ["-x", "script.gdb"]
+    assert argv[x_at : x_at + 2] == ["-x", str(script.resolve())]
     assert x_at < args_at
     assert argv[args_at:] == ["--args", "/host"]
-    assert "--batch" in argv
-    assert argv.index("--batch") < args_at
+    assert "-batch" in argv
+    assert argv.index("-batch") < args_at

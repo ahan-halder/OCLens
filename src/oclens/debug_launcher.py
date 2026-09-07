@@ -53,8 +53,8 @@ def build_gdb_argv(
     ]
     if batch_scripts:
         for script in batch_scripts:
-            cmd.extend(["-x", script])
-        cmd.extend(["--batch", "--args", str(exe)])
+            cmd.extend(["-x", str(Path(script).resolve())])
+        cmd.extend(["-batch", "--args", str(exe)])
     else:
         cmd.extend(["-ex", "ocl-help", "--args", str(exe)])
     return cmd
