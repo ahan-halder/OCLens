@@ -25,7 +25,8 @@ def main() -> int:
     parser.add_argument("--source", type=Path, help="Original .cl to match in the cache")
     args = parser.parse_args()
 
-    if not args.exe.is_file():
+    exe = args.exe.resolve()
+    if not exe.is_file():
         print(f"error: executable not found: {args.exe}", file=sys.stderr)
         return 1
 
@@ -35,8 +36,8 @@ def main() -> int:
     cache.mkdir(parents=True, exist_ok=True)
 
     print(f"POCL_CACHE_DIR={cache}")
-    print(f"Running {args.exe} once to populate PoCL cache …")
-    proc = subprocess.run([str(args.exe)], capture_output=True, text=True, env=env, cwd=args.exe.parent)
+    print(f"Running {exe} once to populate PoCL cache …")
+    proc = subprocess.run([str(exe)], capture_output=True, text=True, env=env, cwd=exe.parent)
     print(proc.stdout, end="")
     if proc.stderr:
         print(proc.stderr, file=sys.stderr, end="")
@@ -54,7 +55,7 @@ def main() -> int:
         print(f"  {match if match else '(no content match)'}")
 
     print(
-        f"\nNext: gdb --args {args.exe} then `break {args.kernel}` and record "
+        f"\nNext: gdb --args {exe} then `break {args.kernel}` and record "
         "locals in docs/probe-pocl-7.2.md"
     )
     return 0 if proc.returncode in (0, 1) else proc.returncode
