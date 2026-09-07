@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from oclens.constants import POCL_DEBUG_ENV, POCL_TARGET_VERSION
+from oclens.constants import POCL_TARGET_VERSION, session_pocl_env
 
 
 @dataclass(frozen=True)
@@ -230,8 +230,9 @@ def format_doctor_report(*, strict: bool = False) -> tuple[str, int]:
 
     lines.append("")
     lines.append("PoCL debugger configuration:")
-    for key, value in POCL_DEBUG_ENV.items():
-        lines.append(f"  {key.replace('POCL_', '').lower().replace('_', ' '):18s}: {value}")
+    for key, value in session_pocl_env().items():
+        pretty = key.removeprefix("POCL_").lower().replace("_", " ")
+        lines.append(f"  {pretty:28s}: {value}")
 
     if failed:
         lines.append("")
