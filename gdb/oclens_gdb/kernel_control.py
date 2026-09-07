@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import gdb  # type: ignore[import-not-found]
 
 from oclens_gdb.session import SESSION
@@ -38,13 +36,43 @@ def bind_sources_from_stop() -> None:
         gdb.write("OCLens: could not bind a PoCL cache copy; using original source path\n")
 
 
+def _line_is_code(location: str) -> bool:
+    try:
+        text = gdb.execute(f"info line {location}", to_string=True)
+    except gdb.error:
+        return False
+    lowered = text.lower()
+    if "no line" in lowered or "out of range" in lowered:
+        return False
+    return "line" in lowered
+
+
+def _plant_breakpoint(path: str, line: int) -> tuple[int, gdb.Breakpoint]:
+    candidates = [line]
+    if line > 1:
+        candidates.append(line - 1)
+    candidates.append(line + 1)
+    for candidate in candidates:
+        loc = f"{path}:{candidate}"
+        if not _line_is_code(loc):
+            continue
+        created = gdb.Breakpoint(loc)
+        return candidate, created
+    created = gdb.Breakpoint(f"{path}:{line}")
+    return line, created
+
+
 def install_line_breakpoints() -> None:
     mapper = SESSION.ensure_mapper()
     gdb.execute("set breakpoint pending on", to_string=True)
+    path = str(mapper.runtime or mapper.original)
     for bp in SESSION.breakpoints.breakpoints:
-        loc = mapper.gdb_break_location(bp.line)
-        created = gdb.Breakpoint(loc)
+        planted_line, created = _plant_breakpoint(path, bp.line)
         bp.gdb_number = int(created.number)
+        if planted_line != bp.line:
+            gdb.write(
+                f"OCLens: no code at line {bp.line}, breakpoint at {planted_line}\n"
+            )
 
 
 def original_source_line(line: int) -> str | None:
@@ -77,19 +105,17 @@ def run_until_kernel() -> None:
     if not SESSION.kernel:
         raise RuntimeError("session kernel is not set")
     gdb.execute("set breakpoint pending on", to_string=True)
-    entry = gdb.Breakpoint(SESSION.kernel)
+    entry = gdb.Breakpoint(SESSION.kernel, temporary=True)
     gdb.execute("run")
-    try:
-        bind_sources_from_stop()
-        if SESSION.breakpoints.breakpoints:
-            _, line = current_sal()
-            wanted = {bp.line for bp in SESSION.breakpoints.breakpoints}
-            install_line_breakpoints()
+    bind_sources_from_stop()
+    if SESSION.breakpoints.breakpoints:
+        _, line = current_sal()
+        install_line_breakpoints()
+        wanted = {bp.line for bp in SESSION.breakpoints.breakpoints}
+        if entry.is_valid():
             entry.delete()
-            if line not in wanted:
-                gdb.execute("continue")
-        else:
-            gdb.write("No source breakpoints set; stopped at kernel entry.\n")
-    finally:
-        pass
+        if line not in wanted:
+            gdb.execute("continue")
+    else:
+        gdb.write("No source breakpoints set; stopped at kernel entry.\n")
     report_stop()
