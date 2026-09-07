@@ -236,10 +236,13 @@ OCLens environment check
 [ok] CPU device found
 
 PoCL debugger configuration:
-  work-group method : loops
-  CPU workers        : 1
-  kernel debug info  : enabled
-  optimisation        : disabled
+  extra build flags             : -g -cl-opt-disable
+  leave kernel compiler temp files: 1
+  work group method             : loops
+  wiloops max unroll count      : 0
+  cpu max cu count              : 1
+  kernel cache                  : 1
+  cache dir                     : ~/.cache/oclens/pocl
 ```
 
 ## Demo walkthrough
