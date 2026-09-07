@@ -27,7 +27,22 @@ def default_pocl_cache_dir() -> Path:
     return base / "oclens" / "pocl"
 
 
-def session_pocl_env() -> dict[str, str]:
+def apply_local_pocl_prefix(env: dict[str, str], prefix: Path) -> None:
+    """Point the ICD loader at a repo-local pocl-install if present."""
+    lib = prefix / "lib"
+    vendors = prefix / "etc" / "OpenCL" / "vendors"
+    if not (lib / "libpocl.so").exists() and not list(lib.glob("libpocl.so*")):
+        return
+    if vendors.is_dir() and "OPENCL_VENDOR_PATH" not in os.environ:
+        env["OPENCL_VENDOR_PATH"] = str(vendors)
+    if lib.is_dir():
+        existing = env.get("LD_LIBRARY_PATH", "")
+        env["LD_LIBRARY_PATH"] = f"{lib}:{existing}" if existing else str(lib)
+
+
+def session_pocl_env(*, prefix: Path | None = None) -> dict[str, str]:
     env = dict(POCL_DEBUG_ENV)
     env.setdefault("POCL_CACHE_DIR", os.environ.get("POCL_CACHE_DIR", str(default_pocl_cache_dir())))
+    if prefix is not None:
+        apply_local_pocl_prefix(env, prefix)
     return env
