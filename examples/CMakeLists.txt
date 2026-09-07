@@ -1,0 +1,3 @@
+add_subdirectory(minimal)
+add_subdirectory(vector_add_bug)
+add_subdirectory(stencil_barrier_bug)
