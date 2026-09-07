@@ -108,6 +108,14 @@ class SourceMapper:
             return path
         return None
 
+    def fingerprints_match(self) -> bool:
+        if self.runtime is None or not self.runtime.is_file():
+            return False
+        try:
+            return fingerprint_file(self.original) == fingerprint_file(self.runtime)
+        except OSError:
+            return False
+
     def is_bound(self) -> bool:
         return self.runtime is not None
 
