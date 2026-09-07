@@ -31,7 +31,7 @@ def main() -> int:
         return 1
 
     env = os.environ.copy()
-    env.update(session_pocl_env())
+    env.update(session_pocl_env(prefix=_ROOT / "pocl-install"))
     cache = Path(env["POCL_CACHE_DIR"])
     cache.mkdir(parents=True, exist_ok=True)
 

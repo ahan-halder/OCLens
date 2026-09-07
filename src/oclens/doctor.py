@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from oclens.constants import POCL_TARGET_VERSION, session_pocl_env
+from oclens.constants import POCL_TARGET_VERSION, apply_local_pocl_prefix, session_pocl_env
 
 
 @dataclass(frozen=True)
@@ -226,6 +226,9 @@ OPTIONAL_CHECKS: list[Callable[[], CheckResult]] = [
 
 
 def format_doctor_report(*, strict: bool = False) -> tuple[str, int]:
+    repo = Path(__file__).resolve().parents[2]
+    apply_local_pocl_prefix(os.environ, repo / "pocl-install")
+
     lines = ["OCLens environment check"]
     failed = 0
     for check in CORE_CHECKS + OPTIONAL_CHECKS:
@@ -238,7 +241,7 @@ def format_doctor_report(*, strict: bool = False) -> tuple[str, int]:
 
     lines.append("")
     lines.append("PoCL debugger configuration:")
-    for key, value in session_pocl_env().items():
+    for key, value in session_pocl_env(prefix=repo / "pocl-install").items():
         pretty = key.removeprefix("POCL_").lower().replace("_", " ")
         lines.append(f"  {pretty:28s}: {value}")
 
