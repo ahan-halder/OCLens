@@ -24,7 +24,7 @@ cmake -S "$POCL_SRC" -B "$POCL_BUILD" -G Ninja \
   -DENABLE_ICD=ON \
   -DINSTALL_ICD=OFF \
   -DENABLE_LLVM=ON \
-  -DLLVM_CONFIG=/usr/bin/llvm-config
+  -DLLVM_CONFIG=/usr/bin/llvm-config-18
 
 cmake --build "$POCL_BUILD" -j"$JOBS"
 cmake --install "$POCL_BUILD"
