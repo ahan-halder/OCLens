@@ -48,10 +48,22 @@ int main(int argc, char **argv)
     int *ref = calloc(n, sizeof(int));
     for (size_t i = 0; i < n; ++i) {
         in[i] = (int)(i + 1);
-        ref[i] = in[i];
-        if (i > 0) {
-            ref[i] += ref[i - 1];
+    }
+    /* Correct kernel: result = private_value + left (gid 0 keeps private_value). */
+    for (size_t i = 0; i < n; ++i) {
+        int gid = (int)i;
+        int lid = (int)(i % local);
+        int private_value = in[i] + in[(i + 1) % n];
+        int left = 0;
+        if (lid > 0) {
+            size_t prev = i - 1;
+            left = in[prev] + in[(prev + 1) % n];
         }
+        int result = private_value + left;
+        if (gid == 0) {
+            result = private_value;
+        }
+        ref[i] = result;
     }
 
     cl_mem d_in = clCreateBuffer(context, CL_MEM_READ_ONLY, n * sizeof(int), NULL, &err);

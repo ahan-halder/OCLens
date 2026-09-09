@@ -51,8 +51,11 @@ Observed:
 | Work-group entry | `_pocl_kernel_<name>_workgroup` | only `T` symbol in `nm` of the .so |
 | Cached source | `$POCL_CACHE_DIR/tempfile_XXXX.cl` | content-identical to the host-loaded .cl |
 | Line 23 stop | `int result = private_value - left;` | `ocl-break 23` then `ocl-run` |
-| Private locals | `in`, `out`, `n`; `out` often `<optimized out>` | even with `-cl-opt-disable` |
-| Local array | `stencil_barrier_bug.scratch` BSS | from `nm` on the .so |
+| Private locals | context arrays e.g. `{{{3, 5, ..., 17}}}` | `ValueProjector` indexes by local ID |
+| Work-item IDs | not in DWARF (`gid`/`lid`/`_local_id_x` missing) | sequential hit clock for `loops` |
 
-Work-item IDs (`gid` / `lid`) are the next adapter target: they are compiler
-materialized, not ordinary DWARF locals of the original OpenCL names.
+PoCL's loops method serializes work-items. When DWARF has no ID symbols, OCLens
+counts hits on a filtered source breakpoint and maps hit *N* onto
+`local = N % local_size`, `group = N / local_size` (1-D groups). That is enough
+to stop on `ocl-wi global 5` and project `private_value[5]`.
+

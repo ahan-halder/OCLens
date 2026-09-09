@@ -1,5 +1,5 @@
 /* Intentional bug: '-' instead of '+'. */
-/* gid=5: private_value=12, left=10, expected=22. */
+/* gid=5: private_value=13, left=11; bug stores 2, correct is 24. */
 
 __kernel void stencil_barrier_bug(__global const int *in,
                                   __global int *out,
