@@ -17,6 +17,7 @@ cmake-build-*/
 # PoCL cache and build artifacts
 /pocl-build/
 /pocl-src/
+/pocl-install/
 *.so
 *.o
 

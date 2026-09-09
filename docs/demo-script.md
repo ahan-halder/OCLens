@@ -1,8 +1,8 @@
-# Demo script (Stage H)
-
-Target workflow once Stages C–G are implemented:
+# Demo script
 
 ```bash
+source ./scripts/env.sh
+source .venv/bin/activate
 oclens debug \
   --exe ./build/examples/stencil_barrier_bug/stencil_barrier_bug \
   --kernel stencil_barrier_bug \
@@ -22,5 +22,7 @@ Inside GDB:
 (oclens) ocl-continue
 ```
 
-Expected: stop only for global work-item 5; `private_value=12`, `left=10`, `result=22`
-at line 23; after continue, host reports mismatch at gid=5 (buggy `-` stores 2 in `out[5]`).
+Expected (in[i]=i+1, local size 8): stop only for global work-item 5;
+`private_value=13`, `left=11`. The breakpoint is *before* the assignment, so
+`result` is still 0; after `ocl-next`, `ocl-print result` shows `2` (the `-`
+bug). The host then reports a mismatch at gid=5: expected 24 (`13+11`), actual 2.

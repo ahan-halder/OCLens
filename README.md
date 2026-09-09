@@ -236,10 +236,13 @@ OCLens environment check
 [ok] CPU device found
 
 PoCL debugger configuration:
-  work-group method : loops
-  CPU workers        : 1
-  kernel debug info  : enabled
-  optimisation        : disabled
+  extra build flags             : -g -cl-opt-disable
+  leave kernel compiler temp files: 1
+  work group method             : loops
+  wiloops max unroll count      : 0
+  cpu max cu count              : 1
+  kernel cache                  : 1
+  cache dir                     : ~/.cache/oclens/pocl
 ```
 
 ## Demo walkthrough
@@ -248,7 +251,7 @@ Launch OCLens against the intentionally buggy `stencil_barrier_bug` kernel:
 
 ```bash
 oclens debug \
-  --exe ./build/examples/stencil_barrier_bug \
+  --exe ./build/examples/stencil_barrier_bug/stencil_barrier_bug \
   --kernel stencil_barrier_bug \
   --source ./examples/stencil_barrier_bug/stencil_barrier_bug.cl \
   --local-size 8,1,1
@@ -259,36 +262,36 @@ oclens debug \
 Breakpoint 1: stencil_barrier_bug.cl:23
 
 (oclens) ocl-wi global 5
-Selected work-item: global=(5,0,0)
+Selected work-item: global=(5, 0, 0)
 
 (oclens) ocl-run
 OCLens: kernel object loaded
 OCLens: source mapped
   original: examples/stencil_barrier_bug/stencil_barrier_bug.cl
-  runtime : .../pocl-cache/.../tempfile-....cl
+  runtime : .../oclens/pocl/tempfile_....cl
 
 Stopped at stencil_barrier_bug.cl:23
 Reason: breakpoint
 Work-item:
-  global = (5,0,0)
-  group  = (0,0,0)
-  local  = (5,0,0)
-23  result = private_value - left;  // BUG
+  global = (5, 0, 0)
+  group  = (0, 0, 0)
+  local  = (5, 0, 0)
+23      int result = private_value - left;  // BUG: should be '+'
 
 (oclens) ocl-locals
-gid           = 5
-lid           = 5
-private_value = 12
-left          = 10
-result        = 22
+in            = 0x...
+n             = 16
+result        = 0
+left          = 11
+private_value = 13
 
 (oclens) ocl-next
-Stopped at stencil_barrier_bug.cl:26
+Stopped at stencil_barrier_bug.cl:25
 Work-item:
-  global = (5,0,0)
-  group  = (0,0,0)
-  local  = (5,0,0)
-26  out[gid] = result;
+  global = (5, 0, 0)
+  group  = (0, 0, 0)
+  local  = (5, 0, 0)
+25      if (gid == 0) {
 
 (oclens) ocl-print result
 2

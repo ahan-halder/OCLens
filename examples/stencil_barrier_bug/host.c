@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../common/load_source.h"
+
 static void check(cl_int err, const char *msg)
 {
     if (err != CL_SUCCESS) {
@@ -10,8 +12,9 @@ static void check(cl_int err, const char *msg)
     }
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+    (void)argc;
     cl_int err;
     cl_platform_id platform;
     cl_device_id device;
@@ -23,21 +26,12 @@ int main(void)
     cl_command_queue queue = clCreateCommandQueue(context, device, 0, &err);
     check(err, "clCreateCommandQueue");
 
-    FILE *fp = fopen("stencil_barrier_bug.cl", "r");
-    if (!fp) {
-        fp = fopen("examples/stencil_barrier_bug/stencil_barrier_bug.cl", "r");
-    }
-    if (!fp) {
+    char *source = oclens_load_source(argv[0], "stencil_barrier_bug.cl",
+                                      "examples/stencil_barrier_bug/stencil_barrier_bug.cl");
+    if (!source) {
         fprintf(stderr, "could not open stencil_barrier_bug.cl\n");
         return 1;
     }
-    fseek(fp, 0, SEEK_END);
-    long size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    char *source = malloc((size_t)size + 1);
-    fread(source, 1, (size_t)size, fp);
-    source[size] = '\0';
-    fclose(fp);
 
     cl_program program = clCreateProgramWithSource(context, 1, (const char **)&source, NULL, &err);
     check(err, "clCreateProgramWithSource");
@@ -48,20 +42,28 @@ int main(void)
 
     const size_t n = 16;
     const size_t local = 8;
-    if (n % local != 0) {
-        fprintf(stderr, "global size must be multiple of local size\n");
-        return 1;
-    }
 
     int *in = calloc(n, sizeof(int));
     int *out = calloc(n, sizeof(int));
     int *ref = calloc(n, sizeof(int));
     for (size_t i = 0; i < n; ++i) {
         in[i] = (int)(i + 1);
-        ref[i] = in[i];
-        if (i > 0) {
-            ref[i] += ref[i - 1];
+    }
+    /* Correct kernel: result = private_value + left (gid 0 keeps private_value). */
+    for (size_t i = 0; i < n; ++i) {
+        int gid = (int)i;
+        int lid = (int)(i % local);
+        int private_value = in[i] + in[(i + 1) % n];
+        int left = 0;
+        if (lid > 0) {
+            size_t prev = i - 1;
+            left = in[prev] + in[(prev + 1) % n];
         }
+        int result = private_value + left;
+        if (gid == 0) {
+            result = private_value;
+        }
+        ref[i] = result;
     }
 
     cl_mem d_in = clCreateBuffer(context, CL_MEM_READ_ONLY, n * sizeof(int), NULL, &err);
@@ -73,7 +75,8 @@ int main(void)
 
     check(clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_in), "arg in");
     check(clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_out), "arg out");
-    check(clSetKernelArg(kernel, 2, sizeof(int), (void *)&n), "arg n");
+    int n_arg = (int)n;
+    check(clSetKernelArg(kernel, 2, sizeof(int), &n_arg), "arg n");
 
     size_t global[3] = {n, 1, 1};
     size_t local_size[3] = {local, 1, 1};

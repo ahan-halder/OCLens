@@ -13,3 +13,7 @@ import oclens_gdb
 oclens_gdb.register_extension()
 print("OCLens: GDB extension loaded")
 end
+
+set pagination off
+set breakpoint pending on
+set confirm off

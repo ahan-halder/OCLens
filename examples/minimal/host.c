@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../common/load_source.h"
+
 static void check(cl_int err, const char *msg)
 {
     if (err != CL_SUCCESS) {
@@ -10,8 +12,9 @@ static void check(cl_int err, const char *msg)
     }
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+    (void)argc;
     cl_int err;
     cl_platform_id platform;
     cl_device_id device;
@@ -23,25 +26,13 @@ int main(void)
     cl_command_queue queue = clCreateCommandQueue(context, device, 0, &err);
     check(err, "clCreateCommandQueue");
 
-    const char *source = NULL;
-    FILE *fp = fopen("minimal.cl", "r");
-    if (!fp) {
-        fp = fopen("examples/minimal/minimal.cl", "r");
-    }
-    if (!fp) {
+    char *source = oclens_load_source(argv[0], "minimal.cl", "examples/minimal/minimal.cl");
+    if (!source) {
         fprintf(stderr, "could not open minimal.cl\n");
         return 1;
     }
-    fseek(fp, 0, SEEK_END);
-    long size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    char *buf = malloc((size_t)size + 1);
-    fread(buf, 1, (size_t)size, fp);
-    buf[size] = '\0';
-    fclose(fp);
-    source = buf;
 
-    cl_program program = clCreateProgramWithSource(context, 1, &source, NULL, &err);
+    cl_program program = clCreateProgramWithSource(context, 1, (const char **)&source, NULL, &err);
     check(err, "clCreateProgramWithSource");
     check(clBuildProgram(program, 1, &device, "-cl-std=CL3.0", NULL, NULL), "clBuildProgram");
 
@@ -83,6 +74,6 @@ int main(void)
         }
     }
     printf("minimal kernel: %s\n", ok ? "PASS" : "FAIL");
-    free(buf);
+    free(source);
     return ok ? 0 : 1;
 }

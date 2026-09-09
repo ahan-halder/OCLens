@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../common/load_source.h"
+
 static void check(cl_int err, const char *msg)
 {
     if (err != CL_SUCCESS) {
@@ -10,8 +12,9 @@ static void check(cl_int err, const char *msg)
     }
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
+    (void)argc;
     cl_int err;
     cl_platform_id platform;
     cl_device_id device;
@@ -23,21 +26,12 @@ int main(void)
     cl_command_queue queue = clCreateCommandQueue(context, device, 0, &err);
     check(err, "clCreateCommandQueue");
 
-    FILE *fp = fopen("vector_add_bug.cl", "r");
-    if (!fp) {
-        fp = fopen("examples/vector_add_bug/vector_add_bug.cl", "r");
-    }
-    if (!fp) {
+    char *source = oclens_load_source(argv[0], "vector_add_bug.cl",
+                                      "examples/vector_add_bug/vector_add_bug.cl");
+    if (!source) {
         fprintf(stderr, "could not open vector_add_bug.cl\n");
         return 1;
     }
-    fseek(fp, 0, SEEK_END);
-    long size = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    char *source = malloc((size_t)size + 1);
-    fread(source, 1, (size_t)size, fp);
-    source[size] = '\0';
-    fclose(fp);
 
     cl_program program = clCreateProgramWithSource(context, 1, (const char **)&source, NULL, &err);
     check(err, "clCreateProgramWithSource");

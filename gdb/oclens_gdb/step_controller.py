@@ -1,8 +1,53 @@
-"""Work-item-preserving source stepping (Stage G)."""
+"""Work-item-preserving source stepping."""
 
 from __future__ import annotations
+
+import gdb  # type: ignore[import-not-found]
+
+from oclens_gdb.kernel_control import current_sal, report_stop
+from oclens_gdb.pocl_adapter import PoclAdapter
+from oclens_gdb.session import SESSION
+from oclens_gdb.work_item_tracker import WorkItemIdentity
+
+
+def _alive() -> bool:
+    inf = gdb.selected_inferior()
+    return bool(inf.is_valid() and inf.pid)
+
+
+def _current_wi() -> WorkItemIdentity | None:
+    if SESSION.tracker.active is not None:
+        return SESSION.tracker.active
+    try:
+        return PoclAdapter(SESSION.local_size).read_current_work_item()
+    except Exception:
+        return None
+
+
+def step_preserving(command: str, *, max_hops: int = 512) -> None:
+    """Run gdb `next`/`step` until the active work-item advances a source line."""
+    start_wi = _current_wi()
+    _, start_line = current_sal()
+    gdb.execute(command)
+    hops = 0
+    while _alive() and hops < max_hops:
+        hops += 1
+        wi = _current_wi()
+        _, line = current_sal()
+        if start_wi is None:
+            break
+        if wi is not None and wi.global_id == start_wi.global_id:
+            if line != start_line:
+                break
+        gdb.execute(command)
+    if start_wi is not None:
+        SESSION.tracker.active = _current_wi() or start_wi
+    report_stop()
 
 
 class StepController:
     def step_source_next(self) -> None:
-        raise NotImplementedError("Stage G — StepController not implemented yet")
+        step_preserving("next")
+
+    def step_source_step(self) -> None:
+        step_preserving("step")
