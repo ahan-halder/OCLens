@@ -12,6 +12,15 @@ class WorkItemIdentity:
     local_id: tuple[int, int, int]
 
 
+    def format(self) -> str:
+        return (
+            "Work-item:\n"
+            f"  global = {self.global_id}\n"
+            f"  group  = {self.group_id}\n"
+            f"  local  = {self.local_id}"
+        )
+
+
 class WorkItemTracker:
     def __init__(self) -> None:
         self.selected: WorkItemIdentity | None = None

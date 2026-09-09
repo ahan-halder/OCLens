@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import gdb  # type: ignore[import-not-found]
 
+from oclens_gdb.filtered_break import WorkItemFilterBreakpoint
+from oclens_gdb.pocl_adapter import PoclAdapter
 from oclens_gdb.session import SESSION
 
 
@@ -61,9 +63,9 @@ def _plant_breakpoint(path: str, line: int) -> tuple[int, gdb.Breakpoint]:
         loc = f"{path}:{candidate}"
         if not _line_is_code(loc):
             continue
-        created = gdb.Breakpoint(loc)
+        created = WorkItemFilterBreakpoint(loc)
         return candidate, created
-    created = gdb.Breakpoint(f"{path}:{line}")
+    created = WorkItemFilterBreakpoint(f"{path}:{line}")
     return line, created
 
 
@@ -98,6 +100,15 @@ def report_stop() -> None:
         return
     gdb.write(f"Stopped at {name}:{line}\n")
     gdb.write("Reason: breakpoint\n")
+    wi = SESSION.tracker.active
+    if wi is None:
+        try:
+            wi = PoclAdapter(SESSION.local_size).read_current_work_item()
+            SESSION.tracker.active = wi
+        except Exception:
+            wi = None
+    if wi is not None:
+        gdb.write(wi.format() + "\n")
     text = original_source_line(line)
     if text is not None:
         gdb.write(f"{line}  {text}\n")
@@ -110,6 +121,8 @@ def run_until_kernel() -> None:
     if not SESSION.kernel:
         raise RuntimeError("session kernel is not set")
     gdb.execute("set breakpoint pending on", to_string=True)
+    SESSION.serial_hit = 0
+    SESSION.tracker.active = None
     entry = gdb.Breakpoint(SESSION.kernel, temporary=True)
     gdb.execute("run")
     bind_sources_from_stop()

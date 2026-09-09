@@ -7,6 +7,7 @@ from pathlib import Path
 
 from oclens_gdb.breakpoint_manager import BreakpointManager
 from oclens_gdb.source_mapper import SourceMapper
+from oclens_gdb.work_item_tracker import WorkItemTracker
 
 
 @dataclass
@@ -27,6 +28,9 @@ class SessionState:
     extension_loaded: bool = True
     mapper: SourceMapper | None = None
     breakpoints: BreakpointManager = field(default_factory=BreakpointManager)
+    tracker: WorkItemTracker = field(default_factory=WorkItemTracker)
+    # Sequential hit index for PoCL loops when DWARF has no work-item IDs.
+    serial_hit: int = 0
 
     def ensure_mapper(self) -> SourceMapper:
         if self.source is None:
