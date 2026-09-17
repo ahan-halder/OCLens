@@ -11,7 +11,6 @@ class WorkItemIdentity:
     group_id: tuple[int, int, int]
     local_id: tuple[int, int, int]
 
-
     def format(self) -> str:
         return (
             "Work-item:\n"
@@ -19,6 +18,20 @@ class WorkItemIdentity:
             f"  group  = {self.group_id}\n"
             f"  local  = {self.local_id}"
         )
+
+
+def step_loop_done(
+    start_wi: WorkItemIdentity | None,
+    start_line: int | None,
+    current_wi: WorkItemIdentity | None,
+    current_line: int | None,
+) -> bool:
+    """Return True when a work-item-preserving step should stop."""
+    if start_wi is None:
+        return True
+    if current_wi is not None and current_wi.global_id == start_wi.global_id:
+        return current_line != start_line
+    return False
 
 
 class WorkItemTracker:

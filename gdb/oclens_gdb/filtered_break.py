@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import gdb  # type: ignore[import-not-found]
-
 from oclens_gdb.pocl_adapter import PoclAdapter
 from oclens_gdb.session import SESSION
 

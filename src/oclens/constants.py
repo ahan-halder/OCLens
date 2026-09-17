@@ -42,7 +42,10 @@ def apply_local_pocl_prefix(env: dict[str, str], prefix: Path) -> None:
 
 def session_pocl_env(*, prefix: Path | None = None) -> dict[str, str]:
     env = dict(POCL_DEBUG_ENV)
-    env.setdefault("POCL_CACHE_DIR", os.environ.get("POCL_CACHE_DIR", str(default_pocl_cache_dir())))
+    env.setdefault(
+        "POCL_CACHE_DIR",
+        os.environ.get("POCL_CACHE_DIR", str(default_pocl_cache_dir())),
+    )
     if prefix is not None:
         apply_local_pocl_prefix(env, prefix)
     return env

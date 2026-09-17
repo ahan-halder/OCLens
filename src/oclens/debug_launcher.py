@@ -101,8 +101,12 @@ def launch_debug_session(args: argparse.Namespace) -> int:
 
 
 def add_debug_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--exe", required=True, help="Host executable that enqueues the kernel")
-    parser.add_argument("--kernel", required=True, help="OpenCL kernel entry point name")
+    parser.add_argument(
+        "--exe", required=True, help="Host executable that enqueues the kernel"
+    )
+    parser.add_argument(
+        "--kernel", required=True, help="OpenCL kernel entry point name"
+    )
     parser.add_argument("--source", required=True, help="Original .cl source file")
     parser.add_argument(
         "--local-size",

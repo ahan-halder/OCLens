@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import gdb  # type: ignore[import-not-found]
+import re
 
+import gdb  # type: ignore[import-not-found]
 from oclens_gdb.filtered_break import WorkItemFilterBreakpoint
 from oclens_gdb.pocl_adapter import PoclAdapter
 from oclens_gdb.session import SESSION
@@ -40,7 +41,9 @@ def bind_sources_from_stop() -> None:
                 "(rebuild the example so the copied kernel is up to date)\n"
             )
     else:
-        gdb.write("OCLens: could not bind a PoCL cache copy; using original source path\n")
+        gdb.write(
+            "OCLens: could not bind a PoCL cache copy; using original source path\n"
+        )
 
 
 def _line_is_code(location: str) -> bool:
@@ -82,6 +85,62 @@ def install_line_breakpoints() -> None:
             )
 
 
+def _signal_name(sig_num: int) -> str:
+    try:
+        import signal
+
+        return signal.Signals(sig_num).name
+    except (ValueError, AttributeError, ImportError):
+        return f"SIG{sig_num}"
+
+
+def detect_gdb_stop() -> tuple[str, str | None, int | None]:
+    """Inspect GDB state and return ``(reason, signal_name, exit_code)``."""
+    inf = gdb.selected_inferior()
+    if not inf.is_valid() or not inf.pid:
+        exit_code: int | None = None
+        try:
+            text = gdb.execute("info program", to_string=True)
+            match = re.search(r"exit code\s+(-?\d+)", text, re.IGNORECASE)
+            if match:
+                exit_code = int(match.group(1))
+        except gdb.error:
+            pass
+        return "exited-normally", None, exit_code
+
+    try:
+        text = gdb.execute("info program", to_string=True)
+    except gdb.error:
+        return "unknown", None, None
+
+    lowered = text.lower()
+    if "breakpoint" in lowered:
+        return "breakpoint-hit", None, None
+    if "step" in lowered or "stepping" in lowered:
+        return "end-stepping-range", None, None
+    if "exited" in lowered:
+        exit_code = None
+        match = re.search(r"exit code\s+(-?\d+)", text, re.IGNORECASE)
+        if match:
+            exit_code = int(match.group(1))
+        return "exited-normally", None, exit_code
+    if "signal" in lowered:
+        match = re.search(r"signal\s+(\S+)", text, re.IGNORECASE)
+        signal_name = match.group(1) if match else None
+        return "signal-received", signal_name, None
+
+    try:
+        thread = gdb.selected_thread()
+        if thread is not None:
+            sig_num = thread.stop_signal()
+            if sig_num:
+                return "signal-received", _signal_name(sig_num), None
+    except gdb.error:
+        pass
+
+    return "unknown", None, None
+
+
 def original_source_line(line: int) -> str | None:
     path = SESSION.source
     if path is None or not path.is_file():
@@ -92,14 +151,27 @@ def original_source_line(line: int) -> str | None:
     return None
 
 
-def report_stop() -> None:
+def report_stop(*, reason: str | None = None) -> None:
     _filename, line = current_sal()
     name = SESSION.source.name if SESSION.source else "kernel"
+    tracker = SESSION.stop_tracker
+    if reason is None:
+        gdb_reason, signal_name, exit_code = detect_gdb_stop()
+        event = tracker.record_from_gdb_reason(
+            gdb_reason,
+            source_line=line,
+            signal_name=signal_name,
+            exit_code=exit_code,
+        )
+    elif reason == "step":
+        event = tracker.record_step(source_line=line)
+    elif reason == "breakpoint":
+        event = tracker.record_breakpoint(source_line=line)
+    else:
+        event = tracker.record_from_gdb_reason(reason, source_line=line)
+    gdb.write(event.format(source_name=name) + "\n")
     if line is None:
-        gdb.write("Stopped (no source line available)\n")
         return
-    gdb.write(f"Stopped at {name}:{line}\n")
-    gdb.write("Reason: breakpoint\n")
     wi = SESSION.tracker.active
     if wi is None:
         try:

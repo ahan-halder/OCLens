@@ -4,7 +4,6 @@ from pathlib import Path
 
 from oclens_gdb.source_mapper import SourceMapper, find_cached_copy
 
-
 KERNEL = "__kernel void vector_add(__global float *c) { c[0] = 1; }\n"
 
 

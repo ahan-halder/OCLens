@@ -7,6 +7,7 @@ from pathlib import Path
 
 from oclens_gdb.breakpoint_manager import BreakpointManager
 from oclens_gdb.source_mapper import SourceMapper
+from oclens_gdb.stop_event_tracker import StopEventTracker
 from oclens_gdb.work_item_tracker import WorkItemTracker
 
 
@@ -29,6 +30,7 @@ class SessionState:
     mapper: SourceMapper | None = None
     breakpoints: BreakpointManager = field(default_factory=BreakpointManager)
     tracker: WorkItemTracker = field(default_factory=WorkItemTracker)
+    stop_tracker: StopEventTracker = field(default_factory=StopEventTracker)
     # Sequential hit index for PoCL loops when DWARF has no work-item IDs.
     serial_hit: int = 0
 
@@ -54,9 +56,7 @@ class SessionState:
         if sel.mode == "global":
             lines.append(f"  selected WI: global={sel.global_id}")
         elif sel.mode == "local":
-            lines.append(
-                f"  selected WI: local={sel.local_id} group={sel.group_id}"
-            )
+            lines.append(f"  selected WI: local={sel.local_id} group={sel.group_id}")
         else:
             lines.append("  selected WI: (none)")
         return "\n".join(lines)

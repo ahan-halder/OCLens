@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import ctypes
-import importlib.util
 import os
 import platform
 import re
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
-from oclens.constants import POCL_TARGET_VERSION, apply_local_pocl_prefix, session_pocl_env
+from oclens.constants import (
+    POCL_TARGET_VERSION,
+    apply_local_pocl_prefix,
+    session_pocl_env,
+)
 
 
 @dataclass(frozen=True)
@@ -24,7 +27,9 @@ class CheckResult:
     detail: str = ""
 
 
-def _run(cmd: list[str], *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def _run(
+    cmd: list[str], *, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         cmd,
         check=False,
@@ -36,7 +41,9 @@ def _run(cmd: list[str], *, env: dict[str, str] | None = None) -> subprocess.Com
 
 def check_linux() -> CheckResult:
     ok = platform.system() == "Linux"
-    return CheckResult("Linux", ok, platform.platform() if ok else "Linux required for v0.1")
+    return CheckResult(
+        "Linux", ok, platform.platform() if ok else "Linux required for v0.1"
+    )
 
 
 def check_python() -> CheckResult:
@@ -59,13 +66,15 @@ def check_gdb_python_api() -> CheckResult:
     if not gdb:
         return CheckResult("GDB Python API available", False, "gdb not found")
     script = (
-        "python import sys; "
-        "print(getattr(sys, 'version_info', None) is not None); "
-        "quit"
+        "python import sys; print(getattr(sys, 'version_info', None) is not None); quit"
     )
     proc = _run([gdb, "-batch", "-ex", script])
     ok = proc.returncode == 0 and "True" in proc.stdout
-    detail = "embedded Python available" if ok else (proc.stderr.strip() or "GDB Python disabled")
+    detail = (
+        "embedded Python available"
+        if ok
+        else (proc.stderr.strip() or "GDB Python disabled")
+    )
     return CheckResult("GDB Python API available", ok, detail)
 
 
@@ -158,7 +167,9 @@ def check_pocl_platform() -> CheckResult:
 def check_pocl_target_version() -> CheckResult:
     found, version, detail = _pocl_platform_info()
     if not found:
-        return CheckResult("PoCL target version recognised", False, "PoCL platform not found")
+        return CheckResult(
+            "PoCL target version recognised", False, "PoCL platform not found"
+        )
     match = re.search(r"PoCL\s+([0-9.]+)", version, re.IGNORECASE)
     detected = match.group(1) if match else version.strip()
     ok = detected.startswith(POCL_TARGET_VERSION)
@@ -184,7 +195,9 @@ def check_cpu_device() -> CheckResult:
     return CheckResult(
         "CPU device found",
         ok,
-        "PoCL CPU device reported by clinfo" if ok else "no CPU device in clinfo output",
+        "PoCL CPU device reported by clinfo"
+        if ok
+        else "no CPU device in clinfo output",
     )
 
 

@@ -70,7 +70,9 @@ class OclSessionSet(gdb.Command):
     def invoke(self, argument: str, from_tty: bool) -> None:
         parts = argument.split()
         if len(parts) < 2:
-            gdb.write("usage: ocl-session-set <exe|kernel|source|local-size> <value...>\n")
+            gdb.write(
+                "usage: ocl-session-set <exe|kernel|source|local-size> <value...>\n"
+            )
             return
         key, *rest = parts
         value = " ".join(rest)
@@ -156,7 +158,9 @@ class OclWi(gdb.Command):
             gdb.write(f"Selected future work-item: global={result.global_id}\n")
             gdb.write("Current machine state still belongs to:\n")
             gdb.write(f"  global={active.global_id}\n")
-            gdb.write("Continue or restart to reach a source stop for the new selection.\n")
+            gdb.write(
+                "Continue or restart to reach a source stop for the new selection.\n"
+            )
         else:
             gdb.write(f"Selected work-item: global={result.global_id}\n")
 

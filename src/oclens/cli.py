@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import sys
 
 from oclens import __version__
 from oclens.debug_launcher import add_debug_arguments, launch_debug_session

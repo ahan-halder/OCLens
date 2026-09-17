@@ -1,6 +1,10 @@
 """Unit tests for OpenCL work-item coordinate math."""
 
-from oclens_gdb.coords import global_from_group_local, group_from_global, local_from_global
+from oclens_gdb.coords import (
+    global_from_group_local,
+    group_from_global,
+    local_from_global,
+)
 
 
 def test_global_group_local_roundtrip() -> None:

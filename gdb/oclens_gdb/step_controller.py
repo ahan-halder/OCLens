@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import gdb  # type: ignore[import-not-found]
-
 from oclens_gdb.kernel_control import current_sal, report_stop
 from oclens_gdb.pocl_adapter import PoclAdapter
 from oclens_gdb.session import SESSION
-from oclens_gdb.work_item_tracker import WorkItemIdentity
+from oclens_gdb.work_item_tracker import WorkItemIdentity, step_loop_done
 
 
 def _alive() -> bool:
@@ -34,15 +33,12 @@ def step_preserving(command: str, *, max_hops: int = 512) -> None:
         hops += 1
         wi = _current_wi()
         _, line = current_sal()
-        if start_wi is None:
+        if step_loop_done(start_wi, start_line, wi, line):
             break
-        if wi is not None and wi.global_id == start_wi.global_id:
-            if line != start_line:
-                break
         gdb.execute(command)
     if start_wi is not None:
         SESSION.tracker.active = _current_wi() or start_wi
-    report_stop()
+    report_stop(reason="step")
 
 
 class StepController:

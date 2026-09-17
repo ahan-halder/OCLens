@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import pytest
-
 from oclens_gdb.breakpoint_manager import BreakpointManager, parse_break_spec
 
 

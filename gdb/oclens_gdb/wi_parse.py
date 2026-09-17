@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
-from oclens_gdb.coords import global_from_group_local, group_from_global, local_from_global
+from oclens_gdb.coords import (
+    global_from_group_local,
+    group_from_global,
+    local_from_global,
+)
 from oclens_gdb.work_item_tracker import WorkItemIdentity
 
 
-def linear_local_index(local_id: tuple[int, int, int], local_size: tuple[int, int, int]) -> int:
+def linear_local_index(
+    local_id: tuple[int, int, int], local_size: tuple[int, int, int]
+) -> int:
     return (
         local_id[0]
         + local_id[1] * local_size[0]
@@ -14,7 +20,9 @@ def linear_local_index(local_id: tuple[int, int, int], local_size: tuple[int, in
     )
 
 
-def unflatten_local(index: int, local_size: tuple[int, int, int]) -> tuple[int, int, int]:
+def unflatten_local(
+    index: int, local_size: tuple[int, int, int]
+) -> tuple[int, int, int]:
     x = index % local_size[0]
     y = (index // local_size[0]) % local_size[1]
     z = index // (local_size[0] * local_size[1])
@@ -57,7 +65,9 @@ def identity_from_local_group(
     )
 
 
-def parse_wi_command(argument: str, local_size: tuple[int, int, int]) -> WorkItemIdentity | str:
+def parse_wi_command(
+    argument: str, local_size: tuple[int, int, int]
+) -> WorkItemIdentity | str:
     """Return a WorkItemIdentity, or 'show'/'clear'."""
     tokens = argument.replace("=", " ").replace(",", " ").split()
     if not tokens or tokens[0] in {"show", "status"}:
@@ -98,4 +108,6 @@ def parse_wi_command(argument: str, local_size: tuple[int, int, int]) -> WorkIte
         while len(nums) < 3:
             nums.append(0)
         return identity_from_global((nums[0], nums[1], nums[2]), local_size)
-    raise ValueError("usage: ocl-wi global <x>[,y,z] | ocl-wi local <x> group <g> | ocl-wi show | ocl-wi clear")
+    raise ValueError(
+        "usage: ocl-wi global <x>[,y,z] | ocl-wi local <x> group <g> | ocl-wi show | ocl-wi clear"
+    )

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from oclens_gdb.coords import global_from_group_local, group_from_global, local_from_global
+from oclens_gdb.coords import (
+    global_from_group_local,
+    group_from_global,
+    local_from_global,
+)
 from oclens_gdb.wi_parse import identity_from_serial_hit
 from oclens_gdb.work_item_tracker import WorkItemIdentity
 
@@ -73,7 +77,9 @@ class PoclAdapter:
             group = (0, 0, 0)
 
         if glob is None or local is None or group is None:
-            raise RuntimeError("could not read OpenCL work-item IDs from the current frame")
+            raise RuntimeError(
+                "could not read OpenCL work-item IDs from the current frame"
+            )
         return WorkItemIdentity(global_id=glob, group_id=group, local_id=local)
 
     def identity_from_hit(self, hit_index: int) -> WorkItemIdentity:

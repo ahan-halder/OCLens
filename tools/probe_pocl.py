@@ -14,15 +14,21 @@ _ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_ROOT / "src"))
 sys.path.insert(0, str(_ROOT / "gdb"))
 
+from oclens_gdb.source_mapper import (  # noqa: E402
+    find_cached_copy,
+    iter_cached_cl_files,
+)
+
 from oclens.constants import session_pocl_env  # noqa: E402
-from oclens_gdb.source_mapper import find_cached_copy, iter_cached_cl_files  # noqa: E402
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--exe", type=Path, required=True, help="Built host executable")
     parser.add_argument("--kernel", required=True, help="Kernel entry point name")
-    parser.add_argument("--source", type=Path, help="Original .cl to match in the cache")
+    parser.add_argument(
+        "--source", type=Path, help="Original .cl to match in the cache"
+    )
     args = parser.parse_args()
 
     exe = args.exe.resolve()
@@ -37,7 +43,9 @@ def main() -> int:
 
     print(f"POCL_CACHE_DIR={cache}")
     print(f"Running {exe} once to populate PoCL cache …")
-    proc = subprocess.run([str(exe)], capture_output=True, text=True, env=env, cwd=exe.parent)
+    proc = subprocess.run(
+        [str(exe)], capture_output=True, text=True, env=env, cwd=exe.parent
+    )
     print(proc.stdout, end="")
     if proc.stderr:
         print(proc.stderr, file=sys.stderr, end="")
