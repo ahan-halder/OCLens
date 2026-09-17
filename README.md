@@ -24,9 +24,9 @@ Work-item:
 (oclens) ocl-locals
 gid           = 5
 lid           = 5
-private_value = 12
-left          = 10
-result        = 22
+private_value = 13
+left          = 11
+result        = 0    # not assigned yet at this breakpoint
 ```
 
 That's the core trick: turning `break kernel.cl:23`, which fires for every
@@ -225,7 +225,7 @@ cmake --build build
 
 # Confirm the demo kernel is actually buggy
 ./build/examples/stencil_barrier_bug
-# Mismatch at gid=5: expected=22 actual=2
+# Mismatch at gid=5: expected=24 actual=2
 # Kernel result: FAIL (intentional demo bug)
 ```
 
