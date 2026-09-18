@@ -34,4 +34,10 @@ Host proof:
 ./build/examples/stencil_barrier_bug/stencil_barrier_bug
 ```
 
-Automated backup: `make test-integration`.
+Automated backup:
+
+```bash
+oclens verify          # doctor + host proof + unit tests (~seconds)
+oclens verify --full   # above + GDB/PoCL integration + batch demo workflow
+make verify-full
+```

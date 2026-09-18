@@ -4,6 +4,8 @@
 
 # OCLens
 
+[![CI](https://github.com/ahan-halder/OCLens/actions/workflows/ci.yml/badge.svg)](https://github.com/ahan-halder/OCLens/actions/workflows/ci.yml)
+
 > Work-item-aware source debugging for OpenCL kernels.
 
 OCLens is a source-level debugger prototype for OpenCL C kernels running on the
@@ -36,6 +38,19 @@ result        = 0    # not assigned yet at this breakpoint
 That's the core trick: turning `break kernel.cl:23`, which fires for every
 work-item, into `break kernel.cl:23 for OpenCL global work-item 5`.
 
+### Features at a glance
+
+| Area | What you get |
+|------|----------------|
+| **Debugging** | Source breakpoints on `.cl`, work-item filters, DWARF locals, per-WI value projection, source step/continue |
+| **CLI** | `oclens doctor`, `oclens debug`, `oclens demo`, **`oclens verify`** (automated proof) |
+| **GDB** | `(oclens)` prompt, `ocl-version`, `ocl-break-clear`, session commands (`ocl-wi`, `ocl-run`, …) |
+| **Examples** | `minimal`, `vector_add_bug`, `stencil_barrier_bug` (barrier + `__local` + real bug) |
+| **Quality** | 48 unit + 3 integration tests, CI (lint + unit + Docker integration), pinned PoCL v7.2 |
+| **Docs** | [Live demo script](docs/demo-script.md), [architecture](docs/architecture.md), PoCL probe notes |
+
+**SegFault 2026:** PoCL CPU backend, LLVM DWARF, GDB/`ptrace` only — no vendor GPU hooks. See [problem statement coverage](#problem-statement-coverage).
+
 ## Table of contents
 
 - [Why OCLens exists](#why-oclens-exists)
@@ -44,6 +59,7 @@ work-item, into `break kernel.cl:23 for OpenCL global work-item 5`.
 - [Architecture](#architecture)
 - [Quick start](#quick-start)
 - [Live demo script](docs/demo-script.md)
+- [How to test OCLens](#how-to-test-oclens)
 - [Commands](#commands)
 - [Repository layout](#repository-layout)
 - [Development timeline](#development-timeline)
@@ -106,14 +122,15 @@ semantics to feel like a GPU-oriented source debugger?*
 
 ## What it does
 
-- source-line breakpoints in `.cl` files;
-- breakpoints filtered to a particular OpenCL work-item;
+- source-line breakpoints in `.cl` files (`ocl-break`, `ocl-break-clear`, `ocl-breaks`);
+- breakpoints filtered to a particular OpenCL work-item (`ocl-wi`);
 - global, group, and local work-item identity at every stop;
-- source-level local-variable inspection through LLVM/DWARF debug information;
-- automatic projection of PoCL's per-work-item private-variable storage;
-- work-item-preserving source stepping;
+- source-level local-variable inspection through LLVM/DWARF debug information (`ocl-locals`, `ocl-print`);
+- automatic projection of PoCL's per-work-item private-variable storage (`ValueProjector`);
+- work-item-preserving source stepping (`ocl-next`, `ocl-step`, `ocl-continue`);
 - inspection of kernel arguments and memory;
-- deterministic execution suitable for debugging multi-work-item kernels.
+- deterministic execution suitable for debugging multi-work-item kernels;
+- one-shot validation via **`oclens verify`** (environment, demo host, unit tests; `--full` adds GDB/PoCL integration).
 
 Everything is built on `PoCL CPU backend → LLVM/DWARF → GDB → OCLens semantic
 adapter`. DWARF parsing, `ptrace`, and process control stay GDB's job; OCLens owns
@@ -143,8 +160,10 @@ capability and adds tooling around reproducibility and proof.
 - **`oclens doctor`** — one command to validate Linux, GDB+Python, PoCL v7.2, CPU device, and extension load
 - **Docker image** — pinned toolchain so the demo survives different host machines
 - **`tools/probe_pocl`** — records PoCL symbol names and context-array layout (`docs/probe-pocl-7.2.md`)
-- **Automated proof** — 42 unit tests + batch-mode GDB integration tests (`OCLENS_TEST:*` markers)
-- **`oclens demo`** — one command to open the stencil_barrier_bug session
+- **Automated proof** — 48 unit tests + 3 GDB/PoCL integration tests; `oclens verify` / `oclens verify --full`
+- **`oclens demo`** — one command to open the stencil_barrier_bug session (`scripts/run_demo.sh` wraps this)
+- **`ocl-break-clear`** — reset logical breakpoints without restarting GDB
+- **`ocl-version`** — extension version inside GDB
 - **CI** — lint (`ruff`), unit tests, GDB smoke, Docker integration job
 - **`StopEventTracker`** — classifies breakpoint / step / signal / exit stops
 - **Selected vs. active work-item** — honest model when you change selection mid-stop
@@ -232,6 +251,10 @@ cmake --build build
 ./build/examples/stencil_barrier_bug/stencil_barrier_bug
 # Mismatch at gid=5: expected=24 actual=2
 # Kernel result: FAIL (intentional demo bug)
+
+# One-shot automated check (after sourcing env.sh)
+source ./scripts/env.sh
+oclens verify
 ```
 
 ### Docker
@@ -310,6 +333,7 @@ oclens demo
 | `ocl-break <line>` / `ocl-break <file>:<line>` | set a logical source breakpoint |
 | `ocl-breaks` | list logical breakpoints |
 | `ocl-break-clear` | remove all logical breakpoints |
+| `ocl-version` | print OCLens GDB extension version |
 | `ocl-wi global <x>[,y,z]` | select a work-item by global ID |
 | `ocl-wi local <x>[,y,z] group <x>[,y,z]` | select a work-item by local ID + group |
 | `ocl-wi show` / `ocl-wi clear` | show or clear the current selection |
@@ -325,6 +349,7 @@ oclens demo
 | Command | Purpose |
 |---|---|
 | `oclens doctor [--strict]` | verify PoCL, GDB, and extension |
+| `oclens verify [--full]` | automated checks (see [How to test](#how-to-test-oclens)) |
 | `oclens debug --exe … --kernel … --source …` | launch GDB with OCLens |
 | `oclens demo [--batch SCRIPT.gdb]` | debug the bundled stencil demo |
 
@@ -426,30 +451,69 @@ timeline
 | Hardening | Automated integration tests, docs, CI | `pytest -q` + batch-mode GDB tests pass in a clean clone |
 | Stretch | Oclgrind backend, WI grid, DAP, stable PoCL ABI | Only starts after the MVP's integration tests pass |
 
-## Testing
+## How to test OCLens
+
+Use this flow after [Quick start](#quick-start) (PoCL built, venv active, examples
+compiled). Always `source ./scripts/env.sh` so PoCL debug flags and `LD_LIBRARY_PATH`
+are set.
+
+### 1. Fast path (judges, ~30 seconds)
 
 ```bash
-make test-unit           # pure logic, fast (42 tests)
-make test-integration    # real GDB + real PoCL (--run-integration)
-make lint                # ruff check + format
-make test                # unit + integration
+cd /path/to/OCLens
+source .venv/bin/activate
+source ./scripts/env.sh
+oclens verify
 ```
 
-Unit tests cover coordinate math, selection comparison, source fingerprinting, and
-array-shape logic — pure logic with no GDB dependency. Integration tests run real
-batch-mode GDB sessions against the real PoCL-compiled example kernels and assert
-on stable machine-readable markers such as:
+**Passes when:** `oclens doctor` is green, the stencil binary exists, the host run
+reports `gid=5: expected=24 actual=2`, and all **48** unit tests pass.
 
-```text
-OCLENS_TEST:BREAKPOINT:PASS
-OCLENS_TEST:WORK_ITEM:global=5,0,0
-OCLENS_TEST:VARIABLE:private_value=12
-OCLENS_TEST:STEP:from=23,to=26
+### 2. Full proof (GDB + PoCL, ~1–2 minutes)
+
+```bash
+oclens verify --full
 ```
 
-The project's central claims — that a breakpoint really stops on one work-item,
-that a private array is really projected back to a scalar, that stepping really
-preserves the active work-item — are never mocked.
+**Additionally runs:** all integration tests and the same batch GDB script as the
+live demo (`tests/fixtures/run_stencil_full.gdb`) via `oclens demo --batch …`
+(filtered breakpoint, `private_value = 13`, step on work-item 5, `result = 2`).
+
+Equivalent: `make verify-full`.
+
+### 3. Manual layers (optional)
+
+| Layer | Command | Proves |
+|-------|---------|--------|
+| Toolchain only | `oclens doctor --strict` | Linux, GDB+Python, PoCL 7.2, CPU device |
+| Kernel bug (no GDB) | `./build/examples/stencil_barrier_bug/stencil_barrier_bug` | Host reference vs buggy kernel |
+| Interactive demo | `oclens demo` then [demo commands](docs/demo-script.md) | Full judge walkthrough |
+| Unit logic | `make test-unit` | Breakpoints, coords, projection, verify CLI |
+| Integration | `make test-integration` | Real GDB sessions on real PoCL kernels |
+| Lint | `make lint` | `ruff` style and format |
+
+### 4. Docker (clean machine)
+
+```bash
+docker build -t oclens-dev .
+docker run --rm -it --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
+  -v "$PWD":/workspace -w /workspace oclens-dev
+# inside: venv, pip install -e ".[dev]", cmake build, source scripts/env.sh, oclens verify --full
+```
+
+CI runs **lint**, **unit tests**, a GDB extension smoke test, and a **Docker**
+job that executes `pytest tests/integration --run-integration` (see badge above).
+
+### What the tests assert
+
+Unit tests cover coordinate math, breakpoint specs, selection comparison, source
+fingerprinting, demo/verify CLI wiring, and array projection — no GDB required.
+
+Integration tests drive real batch-mode GDB against PoCL-compiled kernels. Markers
+such as `OCLENS_TEST:WORK_ITEM` appear in fixtures; the stencil full workflow
+asserts filtered stops and projected variables. **Nothing central is mocked:** if
+`oclens verify --full` passes, the hackathon demo path is genuinely exercised on
+your machine.
 
 ## Scope and non-goals
 

@@ -48,5 +48,5 @@ jobs:
             -v "$PWD:/workspace" \
             -w /workspace \
             oclens-dev \
-            bash -lc 'python3 -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]" && oclens doctor && pytest -q tests/integration --run-integration'
+            bash -lc 'python3 -m venv .venv && . .venv/bin/activate && pip install -e ".[dev]" && cmake -S . -B build -G Ninja && cmake --build build && source ./scripts/env.sh && oclens verify --full'
 
