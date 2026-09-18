@@ -33,6 +33,7 @@ class OclHelp(gdb.Command):
                     "  ocl-session-set <key> <value...>",
                     "  ocl-break <line> | ocl-break <file>:<line>",
                     "  ocl-breaks",
+                    "  ocl-break-clear",
                     "  ocl-wi global <x>[,y,z]",
                     "  ocl-wi local <x>[,y,z] group <x>[,y,z]",
                     "  ocl-wi show | ocl-wi clear",
@@ -116,6 +117,26 @@ class OclBreaks(gdb.Command):
 
     def invoke(self, argument: str, from_tty: bool) -> None:
         gdb.write(SESSION.breakpoints.format_list() + "\n")
+
+
+class OclBreakClear(gdb.Command):
+    """Remove all logical OCLens breakpoints."""
+
+    def __init__(self) -> None:
+        super().__init__("ocl-break-clear", gdb.COMMAND_USER)
+
+    def invoke(self, argument: str, from_tty: bool) -> None:
+        cleared = SESSION.breakpoints.clear()
+        for bp in cleared:
+            if bp.gdb_number is not None:
+                try:
+                    gdb.execute(f"delete breakpoint {bp.gdb_number}", to_string=True)
+                except gdb.error:
+                    pass
+        if cleared:
+            gdb.write(f"Cleared {len(cleared)} logical breakpoint(s).\n")
+        else:
+            gdb.write("(no breakpoints)\n")
 
 
 class OclWi(gdb.Command):
@@ -254,6 +275,7 @@ def register_commands() -> None:
     OclSessionSet()
     OclBreak()
     OclBreaks()
+    OclBreakClear()
     OclWi()
     OclRun()
     OclContinue()

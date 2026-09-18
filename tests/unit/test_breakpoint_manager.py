@@ -33,3 +33,15 @@ def test_manager_dedupes(tmp_path: Path) -> None:
     b = mgr.add(source, 4)
     assert a is b
     assert len(mgr.breakpoints) == 1
+
+
+def test_manager_clear(tmp_path: Path) -> None:
+    source = tmp_path / "k.cl"
+    source.write_text("x\n", encoding="utf-8")
+    mgr = BreakpointManager()
+    first = mgr.add(source, 1)
+    second = mgr.add(source, 2)
+    cleared = mgr.clear()
+    assert cleared == [first, second]
+    assert mgr.breakpoints == []
+    assert mgr.format_list() == "(no breakpoints)"

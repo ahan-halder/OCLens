@@ -55,6 +55,12 @@ class BreakpointManager:
                 return bp
         return None
 
+    def clear(self) -> list[WorkItemBreakpoint]:
+        """Remove all logical breakpoints and return the cleared entries."""
+        cleared = list(self.breakpoints)
+        self.breakpoints.clear()
+        return cleared
+
     def format_list(self) -> str:
         if not self.breakpoints:
             return "(no breakpoints)"
