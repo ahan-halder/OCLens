@@ -23,8 +23,9 @@ if [[ ! -f "$ICD_FILE" ]] || ! grep -qF "$POCL_LIB" "$ICD_FILE"; then
   echo "$POCL_LIB" >"$ICD_FILE"
 fi
 
-export LD_LIBRARY_PATH="${LIB_DIR}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export OPENCL_VENDOR_PATH="$VENDORS"
+# Optional smoke (never fail the build: pipefail + grep/clinfo can exit 141/1).
 if command -v clinfo >/dev/null 2>&1; then
-  clinfo 2>&1 | grep -qi pocl
+  if ! clinfo 2>&1 | grep -qi pocl; then
+    echo "ensure_pocl_icd: warning: clinfo did not list PoCL (ICD file was written)" >&2
+  fi
 fi
