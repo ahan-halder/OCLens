@@ -29,6 +29,7 @@ class OclHelp(gdb.Command):
                 [
                     "OCLens commands:",
                     "  ocl-help",
+                    "  ocl-version",
                     "  ocl-info",
                     "  ocl-session-set <key> <value...>",
                     "  ocl-break <line> | ocl-break <file>:<line>",
@@ -47,6 +48,18 @@ class OclHelp(gdb.Command):
                 ]
             )
         )
+
+
+class OclVersion(gdb.Command):
+    """Show the OCLens extension version."""
+
+    def __init__(self) -> None:
+        super().__init__("ocl-version", gdb.COMMAND_USER)
+
+    def invoke(self, argument: str, from_tty: bool) -> None:
+        from oclens_gdb import __version__
+
+        gdb.write(f"OCLens GDB extension {__version__}\n")
 
 
 class OclInfo(gdb.Command):
@@ -271,6 +284,7 @@ class OclEval(gdb.Command):
 
 def register_commands() -> None:
     OclHelp()
+    OclVersion()
     OclInfo()
     OclSessionSet()
     OclBreak()
