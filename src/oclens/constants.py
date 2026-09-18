@@ -11,6 +11,9 @@ POCL_GIT_TAG = f"v{POCL_TARGET_VERSION}"
 # Real PoCL 7.2 environment variables (see portablecl.org/docs/html/using.html
 # and debug.html). Invented names such as POCL_KERNEL_DEBUG_INFO are ignored
 # by PoCL and must not be used.
+# Minimal PATH when the parent environment omits one (common in CI subprocesses).
+_DEFAULT_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
 POCL_DEBUG_ENV: dict[str, str] = {
     "POCL_EXTRA_BUILD_FLAGS": "-g -cl-opt-disable",
     "POCL_LEAVE_KERNEL_COMPILER_TEMP_FILES": "1",
@@ -92,8 +95,8 @@ def apply_pocl_prefix_to_env(env: dict[str, str], prefix: Path) -> None:
     env["LD_LIBRARY_PATH"] = f"{lib}:{existing}" if existing else str(lib)
     bin_dir = prefix / "bin"
     if bin_dir.is_dir():
-        path = env.get("PATH", "")
-        env["PATH"] = f"{bin_dir}:{path}" if path else str(bin_dir)
+        path = env.get("PATH") or _DEFAULT_PATH
+        env["PATH"] = f"{bin_dir}:{path}"
 
 
 def configure_pocl_runtime_env(

@@ -16,6 +16,7 @@ if [[ -n "${POCL_INSTALL:-}" && -d "${POCL_INSTALL}/lib" ]]; then
   fi
   export LD_LIBRARY_PATH="${POCL_INSTALL}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   export OPENCL_VENDOR_PATH="${POCL_INSTALL}/etc/OpenCL/vendors"
-  export PATH="${POCL_INSTALL}/bin${PATH:+:$PATH}"
+  _base_path="${PATH:-/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
+  export PATH="${POCL_INSTALL}/bin:${_base_path}"
   export CMAKE_PREFIX_PATH="${POCL_INSTALL}${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
 fi
