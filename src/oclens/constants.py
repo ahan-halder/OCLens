@@ -145,7 +145,9 @@ def session_pocl_env(
     return env
 
 
-def runtime_env_for_repo(repo: Path, base: dict[str, str] | None = None) -> dict[str, str]:
+def runtime_env_for_repo(
+    repo: Path, base: dict[str, str] | None = None
+) -> dict[str, str]:
     """Full environment for PoCL host runs and GDB inferiors (CI-safe PATH)."""
     env = dict(base) if base is not None else os.environ.copy()
     for key, value in POCL_DEBUG_ENV.items():
