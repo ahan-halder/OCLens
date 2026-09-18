@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/Logo.jpeg" alt="OCLens logo" width="240" />
+</p>
+
 # OCLens
 
 > Work-item-aware source debugging for OpenCL kernels.
@@ -39,7 +43,7 @@ work-item, into `break kernel.cl:23 for OpenCL global work-item 5`.
 - [Problem statement coverage](#problem-statement-coverage)
 - [Architecture](#architecture)
 - [Quick start](#quick-start)
-- [Demo plan](#demo-plan)
+- [Live demo script](docs/demo-script.md)
 - [Commands](#commands)
 - [Repository layout](#repository-layout)
 - [Development timeline](#development-timeline)
@@ -139,7 +143,8 @@ capability and adds tooling around reproducibility and proof.
 - **`oclens doctor`** — one command to validate Linux, GDB+Python, PoCL v7.2, CPU device, and extension load
 - **Docker image** — pinned toolchain so the demo survives different host machines
 - **`tools/probe_pocl`** — records PoCL symbol names and context-array layout (`docs/probe-pocl-7.2.md`)
-- **Automated proof** — 39 unit tests + batch-mode GDB integration tests (`OCLENS_TEST:*` markers)
+- **Automated proof** — 42 unit tests + batch-mode GDB integration tests (`OCLENS_TEST:*` markers)
+- **`oclens demo`** — one command to open the stencil_barrier_bug session
 - **CI** — lint (`ruff`), unit tests, GDB smoke, Docker integration job
 - **`StopEventTracker`** — classifies breakpoint / step / signal / exit stops
 - **Selected vs. active work-item** — honest model when you change selection mid-stop
@@ -224,7 +229,7 @@ cmake -S . -B build -G Ninja
 cmake --build build
 
 # Confirm the demo kernel is actually buggy
-./build/examples/stencil_barrier_bug
+./build/examples/stencil_barrier_bug/stencil_barrier_bug
 # Mismatch at gid=5: expected=24 actual=2
 # Kernel result: FAIL (intentional demo bug)
 ```
@@ -281,145 +286,20 @@ PoCL debugger configuration:
 
 ## Demo plan
 
-This is the recommended live demo for hackathon judges: ~5 minutes, one kernel,
-one bug, fully scripted. It proves every item in [problem statement coverage](#problem-statement-coverage).
+<!--
+  Long-form judge walkthrough was moved to docs/demo-script.md so the README and
+  demo steps stay in sync. Use `oclens demo` after sourcing scripts/env.sh.
+-->
 
-### 0. Prerequisites (run once)
-
-```bash
-# Native Linux (or use Docker — see Quick start)
-./scripts/bootstrap_ubuntu.sh && ./scripts/build_pocl.sh
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-cmake -S . -B build -G Ninja && cmake --build build
-oclens doctor --strict
-```
-
-Confirm the kernel is genuinely broken **before** debugging:
+The step-by-step demo lives in **[docs/demo-script.md](docs/demo-script.md)** (prerequisites,
+GDB command order, expected values, and CI backup).
 
 ```bash
-./build/examples/stencil_barrier_bug/stencil_barrier_bug
-# Mismatch at gid=5: expected=24 actual=2
-# Kernel result: FAIL (intentional demo bug)
+source ./scripts/env.sh
+oclens demo
 ```
 
-### 1. Launch (one command)
-
-```bash
-source ./scripts/env.sh   # PoCL debug env vars
-./scripts/run_demo.sh
-# or equivalently:
-oclens debug \
-  --exe ./build/examples/stencil_barrier_bug/stencil_barrier_bug \
-  --kernel stencil_barrier_bug \
-  --source ./examples/stencil_barrier_bug/stencil_barrier_bug.cl \
-  --local-size 8,1,1
-```
-
-You should land in GDB with the `(oclens)` prompt and `ocl-help` available.
-
-### 2. Live demo script (~5 min)
-
-Copy-paste these commands in order. **Narration hints** are in italics.
-
-| Step | Command | What to say / expect |
-|:---:|---|---|
-| 1 | `ocl-break 23` | *"Set a breakpoint on the buggy line in OpenCL source."* → `Breakpoint 1: stencil_barrier_bug.cl:23` |
-| 2 | `ocl-wi global 5` | *"Only stop when work-item 5 hits that line — not all 16."* → `Selected work-item: global=(5, 0, 0)` |
-| 3 | `ocl-run` | *"Run host, load kernel, bind PoCL's cached copy to our .cl."* → `OCLens: source mapped` then stop at line 23 |
-| 4 | *(read output)* | Work-item block shows `global = (5, 0, 0)`; source line shows `private_value - left` |
-| 5 | `ocl-locals` | *"These are source names via LLVM DWARF, projected for WI 5."* → `private_value = 13`, `left = 11` |
-| 6 | `ocl-next` | *"Step one source line, stay on the same work-item."* → stops at line 25, still `global = (5, 0, 0)` |
-| 7 | `ocl-print result` | *"The bug: `13 - 11 = 2` instead of `24`."* → prints `2` |
-| 8 | `ocl-continue` | *"Other work-items ran without stopping the session."* → program finishes |
-| 9 | `quit` | Exit GDB |
-
-Full expected transcript:
-
-```text
-(oclens) ocl-break 23
-Breakpoint 1: stencil_barrier_bug.cl:23
-
-(oclens) ocl-wi global 5
-Selected work-item: global=(5, 0, 0)
-
-(oclens) ocl-run
-OCLens: kernel object loaded
-OCLens: source mapped
-  original: examples/stencil_barrier_bug/stencil_barrier_bug.cl
-  runtime : .../oclens/pocl/tempfile_....cl
-
-Stopped at stencil_barrier_bug.cl:23
-Reason: breakpoint
-Work-item:
-  global = (5, 0, 0)
-  group  = (0, 0, 0)
-  local  = (5, 0, 0)
-23      int result = private_value - left;  // BUG: should be '+'
-
-(oclens) ocl-locals
-in            = 0x...
-n             = 16
-result        = 0
-left          = 11
-private_value = 13
-
-(oclens) ocl-next
-Stopped at stencil_barrier_bug.cl:25
-Reason: end of step
-Work-item:
-  global = (5, 0, 0)
-  group  = (0, 0, 0)
-  local  = (5, 0, 0)
-25      if (gid == 0) {
-
-(oclens) ocl-print result
-2
-
-(oclens) ocl-continue
-```
-
-**Why this kernel?** Sixteen work-items across two work-groups, `__local` scratch
-memory, a legal `barrier`, divergent control flow (`gid == 0`), and a real logic
-bug (`-` instead of `+`). The host independently verifies output — the mismatch
-at gid=5 is provable, not scripted.
-
-### 3. Automated demo (no live GDB typing)
-
-For CI or a backup if live debugging is awkward:
-
-```bash
-make test-unit                              # 39 fast logic tests
-pytest -q tests/integration --run-integration   # real GDB + PoCL end-to-end
-```
-
-The full workflow is exercised by `tests/fixtures/run_stencil_full.gdb` and
-asserted in `tests/integration/test_stencil_full.py` (filtered breakpoint,
-`private_value = 13`, step preserves WI 5, `ocl-print result` → `2`).
-
-### 4. Two-minute version
-
-If time is tight, run only steps 1–5 above, then show the host proof:
-
-```bash
-./build/examples/stencil_barrier_bug/stencil_barrier_bug
-```
-
-Point out: *breakpoint filtered to one work-item, source-level locals from DWARF,
-no GPU driver.*
-
-### 5. Optional extras
-
-```text
-(oclens) ocl-info              # session, kernel path, selected WI
-(oclens) ocl-breaks            # list logical breakpoints
-(oclens) ocl-wi show           # selection vs. active WI
-(oclens) ocl-step              # step into (same WI-preserving logic as ocl-next)
-(oclens) bt                    # ordinary GDB still works
-```
-
-Second example (simpler, no barrier): `examples/vector_add_bug/` — off-by-one bug
-across work-items; same `oclens debug` flow with `--kernel vector_add_bug`.
+`oclens demo` is the same session as `./scripts/run_demo.sh`. GDB shows the `(oclens)` prompt.
 
 ## Commands
 
@@ -429,6 +309,7 @@ across work-items; same `oclens debug` flow with `--kernel vector_add_bug`.
 | `ocl-info` | show session / kernel / work-item state |
 | `ocl-break <line>` / `ocl-break <file>:<line>` | set a logical source breakpoint |
 | `ocl-breaks` | list logical breakpoints |
+| `ocl-break-clear` | remove all logical breakpoints |
 | `ocl-wi global <x>[,y,z]` | select a work-item by global ID |
 | `ocl-wi local <x>[,y,z] group <x>[,y,z]` | select a work-item by local ID + group |
 | `ocl-wi show` / `ocl-wi clear` | show or clear the current selection |
@@ -438,6 +319,14 @@ across work-items; same `oclens debug` flow with `--kernel vector_add_bug`.
 | `ocl-locals` | print source-level locals, projected for the active work-item |
 | `ocl-print <identifier>` | print one variable's projected value |
 | `ocl-eval <gdb-expression>` | delegate an expression straight to GDB |
+
+### CLI
+
+| Command | Purpose |
+|---|---|
+| `oclens doctor [--strict]` | verify PoCL, GDB, and extension |
+| `oclens debug --exe … --kernel … --source …` | launch GDB with OCLens |
+| `oclens demo [--batch SCRIPT.gdb]` | debug the bundled stencil demo |
 
 Nice-to-have (not required for the MVP): `ocl-x`, `ocl-source`, `ocl-restart`,
 `ocl-at-global`. Ordinary GDB commands (`bt`, `info locals`, `disassemble`, …)
@@ -540,7 +429,7 @@ timeline
 ## Testing
 
 ```bash
-make test-unit           # pure logic, fast (39 tests)
+make test-unit           # pure logic, fast (42 tests)
 make test-integration    # real GDB + real PoCL (--run-integration)
 make lint                # ruff check + format
 make test                # unit + integration
