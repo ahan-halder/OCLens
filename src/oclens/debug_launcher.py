@@ -22,7 +22,7 @@ def gdb_init_path() -> Path:
 
 def build_debug_env(extra: dict[str, str] | None = None) -> dict[str, str]:
     env = os.environ.copy()
-    env.update(session_pocl_env(prefix=repo_root() / "pocl-install"))
+    env.update(session_pocl_env(repo=repo_root()))
     if extra:
         env.update(extra)
     return env

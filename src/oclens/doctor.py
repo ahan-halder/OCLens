@@ -15,7 +15,7 @@ from pathlib import Path
 
 from oclens.constants import (
     POCL_TARGET_VERSION,
-    apply_local_pocl_prefix,
+    configure_pocl_runtime_env,
     session_pocl_env,
 )
 
@@ -240,7 +240,7 @@ OPTIONAL_CHECKS: list[Callable[[], CheckResult]] = [
 
 def format_doctor_report(*, strict: bool = False) -> tuple[str, int]:
     repo = Path(__file__).resolve().parents[2]
-    apply_local_pocl_prefix(os.environ, repo / "pocl-install")
+    configure_pocl_runtime_env(os.environ, repo)
 
     lines = ["OCLens environment check"]
     failed = 0
@@ -254,7 +254,7 @@ def format_doctor_report(*, strict: bool = False) -> tuple[str, int]:
 
     lines.append("")
     lines.append("PoCL debugger configuration:")
-    for key, value in session_pocl_env(prefix=repo / "pocl-install").items():
+    for key, value in session_pocl_env(repo=repo).items():
         pretty = key.removeprefix("POCL_").lower().replace("_", " ")
         lines.append(f"  {pretty:28s}: {value}")
 

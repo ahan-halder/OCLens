@@ -46,7 +46,7 @@ work-item, into `break kernel.cl:23 for OpenCL global work-item 5`.
 | **CLI** | `oclens doctor`, `oclens debug`, `oclens demo`, **`oclens verify`** (automated proof) |
 | **GDB** | `(oclens)` prompt, `ocl-version`, `ocl-break-clear`, session commands (`ocl-wi`, `ocl-run`, …) |
 | **Examples** | `minimal`, `vector_add_bug`, `stencil_barrier_bug` (barrier + `__local` + real bug) |
-| **Quality** | 48 unit + 3 integration tests, CI (lint + unit + Docker integration), pinned PoCL v7.2 |
+| **Quality** | 51 unit + 3 integration tests, CI (lint + unit + Docker integration), pinned PoCL v7.2 |
 | **Docs** | [Live demo script](docs/demo-script.md), [architecture](docs/architecture.md), PoCL probe notes |
 
 **SegFault 2026:** PoCL CPU backend, LLVM DWARF, GDB/`ptrace` only — no vendor GPU hooks. See [problem statement coverage](#problem-statement-coverage).
@@ -160,7 +160,7 @@ capability and adds tooling around reproducibility and proof.
 - **`oclens doctor`** — one command to validate Linux, GDB+Python, PoCL v7.2, CPU device, and extension load
 - **Docker image** — pinned toolchain so the demo survives different host machines
 - **`tools/probe_pocl`** — records PoCL symbol names and context-array layout (`docs/probe-pocl-7.2.md`)
-- **Automated proof** — 48 unit tests + 3 GDB/PoCL integration tests; `oclens verify` / `oclens verify --full`
+- **Automated proof** — 51 unit tests + 3 GDB/PoCL integration tests; `oclens verify` / `oclens verify --full`
 - **`oclens demo`** — one command to open the stencil_barrier_bug session (`scripts/run_demo.sh` wraps this)
 - **`ocl-break-clear`** — reset logical breakpoints without restarting GDB
 - **`ocl-version`** — extension version inside GDB
@@ -467,7 +467,7 @@ oclens verify
 ```
 
 **Passes when:** `oclens doctor` is green, the stencil binary exists, the host run
-reports `gid=5: expected=24 actual=2`, and all **48** unit tests pass.
+reports `gid=5: expected=24 actual=2`, and all **51** unit tests pass.
 
 ### 2. Full proof (GDB + PoCL, ~1–2 minutes)
 

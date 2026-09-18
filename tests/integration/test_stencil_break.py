@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from oclens.constants import apply_local_pocl_prefix
+from oclens.constants import configure_pocl_runtime_env
 from oclens.doctor import check_pocl_platform
 
 pytestmark = pytest.mark.integration
@@ -21,7 +21,7 @@ SCRIPT = ROOT / "tests" / "fixtures" / "run_stencil_break.gdb"
 
 
 def _pocl_ready() -> bool:
-    apply_local_pocl_prefix(os.environ, ROOT / "pocl-install")
+    configure_pocl_runtime_env(os.environ, ROOT)
     return check_pocl_platform().ok and EXE.is_file()
 
 

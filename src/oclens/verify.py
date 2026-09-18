@@ -9,7 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from oclens.constants import apply_local_pocl_prefix, session_pocl_env
+from oclens.constants import configure_pocl_runtime_env, session_pocl_env
 from oclens.debug_launcher import repo_root
 from oclens.demo_launcher import default_demo_paths
 from oclens.doctor import format_doctor_report
@@ -53,7 +53,8 @@ def verify_demo_host_output(root: Path | None = None) -> VerifyStep:
         return VerifyStep("Demo kernel host run", False, f"binary missing: {exe}")
 
     env = os.environ.copy()
-    env.update(session_pocl_env(prefix=base / "pocl-install"))
+    env.update(session_pocl_env(repo=base))
+    configure_pocl_runtime_env(env, base)
     proc = subprocess.run(
         [str(exe)],
         check=False,
@@ -110,7 +111,7 @@ def verify_gdb_demo_batch(root: Path | None = None) -> VerifyStep:
         return VerifyStep("GDB demo batch workflow", False, f"missing {script}")
 
     env = os.environ.copy()
-    apply_local_pocl_prefix(env, base / "pocl-install")
+    configure_pocl_runtime_env(env, base)
     env["OCLENS_ROOT"] = str(base)
     env["OCLENS_GDB_PKG"] = str(base / "gdb")
 
