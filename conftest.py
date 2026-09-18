@@ -11,9 +11,9 @@ _REPO_ROOT = Path(__file__).resolve().parent
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    from oclens.constants import configure_pocl_runtime_env
+    from oclens.constants import runtime_env_for_repo
 
-    configure_pocl_runtime_env(os.environ, _REPO_ROOT)
+    os.environ.update(runtime_env_for_repo(_REPO_ROOT))
     config.addinivalue_line(
         "markers",
         "integration: real GDB + PoCL tests (slow)",

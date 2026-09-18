@@ -9,7 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from oclens.constants import configure_pocl_runtime_env, session_pocl_env
+from oclens.constants import runtime_env_for_repo
 from oclens.debug_launcher import repo_root
 from oclens.demo_launcher import default_demo_paths
 from oclens.doctor import format_doctor_report
@@ -52,9 +52,7 @@ def verify_demo_host_output(root: Path | None = None) -> VerifyStep:
     if not exe.is_file():
         return VerifyStep("Demo kernel host run", False, f"binary missing: {exe}")
 
-    env = os.environ.copy()
-    env.update(session_pocl_env(repo=base))
-    configure_pocl_runtime_env(env, base)
+    env = runtime_env_for_repo(base)
     proc = subprocess.run(
         [str(exe)],
         check=False,
@@ -83,8 +81,7 @@ def verify_demo_host_output(root: Path | None = None) -> VerifyStep:
 
 def _run_pytest(args: list[str], root: Path) -> VerifyStep:
     label = " ".join(args)
-    env = os.environ.copy()
-    configure_pocl_runtime_env(env, root)
+    env = runtime_env_for_repo(root)
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", *args],
         check=False,
@@ -113,8 +110,7 @@ def verify_gdb_demo_batch(root: Path | None = None) -> VerifyStep:
     if not script.is_file():
         return VerifyStep("GDB demo batch workflow", False, f"missing {script}")
 
-    env = os.environ.copy()
-    configure_pocl_runtime_env(env, base)
+    env = runtime_env_for_repo(base)
     env["OCLENS_ROOT"] = str(base)
     env["OCLENS_GDB_PKG"] = str(base / "gdb")
 
@@ -155,7 +151,7 @@ def run_verify(
 ) -> tuple[str, int]:
     """Run verification steps and return a report plus exit code."""
     base = root or repo_root()
-    configure_pocl_runtime_env(os.environ, base)
+    os.environ.update(runtime_env_for_repo(base))
 
     def _doctor() -> VerifyStep:
         return verify_doctor(strict=True)

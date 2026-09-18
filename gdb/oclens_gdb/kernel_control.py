@@ -6,6 +6,7 @@ import re
 
 import gdb  # type: ignore[import-not-found]
 from oclens_gdb.filtered_break import WorkItemFilterBreakpoint
+from oclens_gdb.inferior_env import push_runtime_env_to_inferior
 from oclens_gdb.pocl_adapter import PoclAdapter
 from oclens_gdb.session import SESSION
 
@@ -192,6 +193,7 @@ def run_until_kernel() -> None:
         raise RuntimeError("inferior already running; use ocl-continue")
     if not SESSION.kernel:
         raise RuntimeError("session kernel is not set")
+    push_runtime_env_to_inferior()
     gdb.execute("set breakpoint pending on", to_string=True)
     SESSION.serial_hit = 0
     SESSION.tracker.active = None

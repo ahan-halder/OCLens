@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import argparse
-import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from oclens.constants import session_pocl_env
+from oclens.constants import runtime_env_for_repo
 
 
 def repo_root() -> Path:
@@ -21,8 +20,7 @@ def gdb_init_path() -> Path:
 
 
 def build_debug_env(extra: dict[str, str] | None = None) -> dict[str, str]:
-    env = os.environ.copy()
-    env.update(session_pocl_env(repo=repo_root()))
+    env = runtime_env_for_repo(repo_root())
     if extra:
         env.update(extra)
     return env

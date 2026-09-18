@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from oclens.constants import configure_pocl_runtime_env
+from oclens.constants import configure_pocl_runtime_env, runtime_env_for_repo
 from oclens.doctor import check_pocl_platform
 
 pytestmark = pytest.mark.integration
@@ -47,6 +47,7 @@ def test_filtered_breakpoint_locals_and_step() -> None:
         capture_output=True,
         text=True,
         cwd=ROOT,
+        env=runtime_env_for_repo(ROOT),
         timeout=90,
     )
     output = proc.stdout + proc.stderr

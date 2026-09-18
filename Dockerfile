@@ -49,11 +49,16 @@ RUN git clone --depth 1 --branch ${POCL_TAG} https://github.com/pocl/pocl.git po
     && cmake --install pocl-build \
     && chmod +x /usr/local/bin/ensure_pocl_icd.sh \
     && ensure_pocl_icd.sh "${POCL_PREFIX}" \
+    && for tool in ld clang clang-18; do \
+         if [ -x "/usr/bin/${tool}" ]; then \
+           ln -sf "/usr/bin/${tool}" "${POCL_PREFIX}/bin/${tool}"; \
+         fi; \
+       done \
     && rm -rf /tmp/pocl-src /tmp/pocl-build
 
-ENV LD_LIBRARY_PATH=${POCL_PREFIX}/lib
+ENV PATH="/opt/pocl/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ENV LD_LIBRARY_PATH="/opt/pocl/lib:/usr/lib/llvm-18/lib"
 ENV OPENCL_VENDOR_PATH=${POCL_PREFIX}/etc/OpenCL/vendors
-ENV PATH=${POCL_PREFIX}/bin:${PATH}
 
 WORKDIR /workspace
 CMD ["/bin/bash"]

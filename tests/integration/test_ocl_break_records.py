@@ -8,6 +8,8 @@ from pathlib import Path
 
 import pytest
 
+from oclens.constants import runtime_env_for_repo
+
 pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -35,6 +37,7 @@ def test_ocl_break_is_listed_in_batch_mode() -> None:
         capture_output=True,
         text=True,
         cwd=ROOT,
+        env=runtime_env_for_repo(ROOT),
     )
     output = proc.stdout + proc.stderr
     assert "Breakpoint 1: stencil_barrier_bug.cl:23" in output, output

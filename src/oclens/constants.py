@@ -12,7 +12,8 @@ POCL_GIT_TAG = f"v{POCL_TARGET_VERSION}"
 # and debug.html). Invented names such as POCL_KERNEL_DEBUG_INFO are ignored
 # by PoCL and must not be used.
 # Minimal PATH when the parent environment omits one (common in CI subprocesses).
-_DEFAULT_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+DEFAULT_SYSTEM_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+_DEFAULT_PATH = DEFAULT_SYSTEM_PATH
 
 POCL_DEBUG_ENV: dict[str, str] = {
     "POCL_EXTRA_BUILD_FLAGS": "-g -cl-opt-disable",
@@ -22,6 +23,16 @@ POCL_DEBUG_ENV: dict[str, str] = {
     "POCL_CPU_MAX_CU_COUNT": "1",
     "POCL_KERNEL_CACHE": "1",
 }
+
+RUNTIME_ENV_KEYS: tuple[str, ...] = (
+    "PATH",
+    "LD_LIBRARY_PATH",
+    "OPENCL_VENDOR_PATH",
+    "POCL_INSTALL",
+    "POCL_CACHE_DIR",
+    "POCL_CC",
+    *POCL_DEBUG_ENV.keys(),
+)
 
 
 def default_pocl_cache_dir() -> Path:
@@ -131,4 +142,31 @@ def session_pocl_env(
         apply_pocl_prefix_to_env(env, prefix)
     elif repo is not None:
         configure_pocl_runtime_env(env, repo)
+    return env
+
+
+def runtime_env_for_repo(repo: Path, base: dict[str, str] | None = None) -> dict[str, str]:
+    """Full environment for PoCL host runs and GDB inferiors (CI-safe PATH)."""
+    env = dict(base) if base is not None else os.environ.copy()
+    for key, value in POCL_DEBUG_ENV.items():
+        env.setdefault(key, value)
+    env.setdefault("POCL_CACHE_DIR", str(default_pocl_cache_dir()))
+    configure_pocl_runtime_env(env, repo)
+
+    path = env.get("PATH") or ""
+    if "/usr/bin" not in path:
+        env["PATH"] = f"{path}:{_DEFAULT_PATH}" if path else _DEFAULT_PATH
+
+    llvm_lib = Path("/usr/lib/llvm-18/lib")
+    if llvm_lib.is_dir():
+        ld = env.get("LD_LIBRARY_PATH", "")
+        lib = str(llvm_lib)
+        if lib not in ld:
+            env["LD_LIBRARY_PATH"] = f"{ld}:{lib}" if ld else lib
+
+    for cc in ("/usr/bin/clang-18", "/usr/bin/clang"):
+        if Path(cc).is_file():
+            env.setdefault("POCL_CC", cc)
+            break
+
     return env
