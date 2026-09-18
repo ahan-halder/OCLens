@@ -8,6 +8,7 @@ from oclens import __version__
 from oclens.debug_launcher import add_debug_arguments, launch_debug_session
 from oclens.demo_launcher import launch_demo_session
 from oclens.doctor import format_doctor_report
+from oclens.verify import run_verify
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -40,6 +41,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run a GDB command script (repeatable); implies non-interactive batch mode",
     )
 
+    verify = sub.add_parser(
+        "verify",
+        help="Run automated checks (doctor, demo host, unit tests; use --full for GDB integration)",
+    )
+    verify.add_argument(
+        "--full",
+        action="store_true",
+        help="Also run pytest integration tests and the batch GDB demo workflow",
+    )
+
     return parser
 
 
@@ -57,6 +68,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "demo":
         return launch_demo_session(batch=args.batch)
+
+    if args.command == "verify":
+        report, code = run_verify(full=args.full)
+        print(report)
+        return code
 
     parser.error(f"unknown command: {args.command}")
     return 2

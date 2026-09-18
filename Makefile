@@ -1,6 +1,12 @@
-.PHONY: test test-unit test-integration build-examples doctor lint format
+.PHONY: test test-unit test-integration build-examples doctor lint format verify verify-full
 
 test: test-unit test-integration
+
+verify:
+	oclens verify
+
+verify-full:
+	oclens verify --full
 
 test-unit:
 	pytest -q tests/unit
