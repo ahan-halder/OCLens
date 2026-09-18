@@ -10,6 +10,10 @@ elif [[ -z "${POCL_INSTALL:-}" && -d /opt/pocl/lib ]]; then
 fi
 
 if [[ -n "${POCL_INSTALL:-}" && -d "${POCL_INSTALL}/lib" ]]; then
+  if [[ -x "$ROOT/scripts/ensure_pocl_icd.sh" ]]; then
+    # shellcheck source=/dev/null
+    "$ROOT/scripts/ensure_pocl_icd.sh" "$POCL_INSTALL" >/dev/null 2>&1 || true
+  fi
   export LD_LIBRARY_PATH="${POCL_INSTALL}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
   export OPENCL_VENDOR_PATH="${POCL_INSTALL}/etc/OpenCL/vendors"
   export PATH="${POCL_INSTALL}/bin${PATH:+:$PATH}"

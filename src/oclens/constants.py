@@ -27,12 +27,31 @@ def default_pocl_cache_dir() -> Path:
     return base / "oclens" / "pocl"
 
 
-def pocl_prefix_valid(prefix: Path) -> bool:
+def has_pocl_libraries(prefix: Path) -> bool:
     lib = prefix / "lib"
-    if not lib.is_dir():
+    return lib.is_dir() and bool(list(lib.glob("libpocl.so*")))
+
+
+def ensure_pocl_icd_file(prefix: Path) -> None:
+    """Write pocl.icd when PoCL was built with INSTALL_ICD=OFF."""
+    if not has_pocl_libraries(prefix):
+        return
+    lib_dir = prefix / "lib"
+    libs = sorted(lib_dir.glob("libpocl.so*"))
+    if not libs:
+        return
+    vendors = prefix / "etc" / "OpenCL" / "vendors"
+    vendors.mkdir(parents=True, exist_ok=True)
+    icd = vendors / "pocl.icd"
+    line = str(libs[-1].resolve())
+    if not icd.is_file() or icd.read_text(encoding="utf-8").strip() != line:
+        icd.write_text(f"{line}\n", encoding="utf-8")
+
+
+def pocl_prefix_valid(prefix: Path) -> bool:
+    if not has_pocl_libraries(prefix):
         return False
-    if not list(lib.glob("libpocl.so*")):
-        return False
+    ensure_pocl_icd_file(prefix)
     vendors = prefix / "etc" / "OpenCL" / "vendors"
     return vendors.is_dir() and any(vendors.iterdir())
 
@@ -54,15 +73,17 @@ def discover_pocl_prefix(repo: Path | None = None) -> Path | None:
         if resolved in seen:
             continue
         seen.add(resolved)
-        if pocl_prefix_valid(resolved):
+        if has_pocl_libraries(resolved):
+            ensure_pocl_icd_file(resolved)
             return resolved
     return None
 
 
 def apply_pocl_prefix_to_env(env: dict[str, str], prefix: Path) -> None:
     """Point the OpenCL ICD loader at a PoCL prefix."""
-    if not pocl_prefix_valid(prefix):
+    if not has_pocl_libraries(prefix):
         return
+    ensure_pocl_icd_file(prefix)
     lib = prefix / "lib"
     vendors = prefix / "etc" / "OpenCL" / "vendors"
     env["OPENCL_VENDOR_PATH"] = str(vendors)
@@ -103,7 +124,7 @@ def session_pocl_env(
         "POCL_CACHE_DIR",
         os.environ.get("POCL_CACHE_DIR", str(default_pocl_cache_dir())),
     )
-    if prefix is not None and pocl_prefix_valid(prefix):
+    if prefix is not None and has_pocl_libraries(prefix):
         apply_pocl_prefix_to_env(env, prefix)
     elif repo is not None:
         configure_pocl_runtime_env(env, repo)

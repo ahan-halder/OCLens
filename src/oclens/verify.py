@@ -83,10 +83,13 @@ def verify_demo_host_output(root: Path | None = None) -> VerifyStep:
 
 def _run_pytest(args: list[str], root: Path) -> VerifyStep:
     label = " ".join(args)
+    env = os.environ.copy()
+    configure_pocl_runtime_env(env, root)
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", *args],
         check=False,
         cwd=root,
+        env=env,
         timeout=300,
     )
     ok = proc.returncode == 0
@@ -152,6 +155,7 @@ def run_verify(
 ) -> tuple[str, int]:
     """Run verification steps and return a report plus exit code."""
     base = root or repo_root()
+    configure_pocl_runtime_env(os.environ, base)
 
     def _doctor() -> VerifyStep:
         return verify_doctor(strict=True)

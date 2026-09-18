@@ -29,6 +29,10 @@ cmake -S "$POCL_SRC" -B "$POCL_BUILD" -G Ninja \
 cmake --build "$POCL_BUILD" -j"$JOBS"
 cmake --install "$POCL_BUILD"
 
+if [[ -x "$ROOT/scripts/ensure_pocl_icd.sh" ]]; then
+  "$ROOT/scripts/ensure_pocl_icd.sh" "$POCL_PREFIX"
+fi
+
 cat <<EOF
 
 PoCL installed to: $POCL_PREFIX
