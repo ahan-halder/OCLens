@@ -17,3 +17,4 @@ end
 set pagination off
 set breakpoint pending on
 set confirm off
+set prompt (oclens) 
